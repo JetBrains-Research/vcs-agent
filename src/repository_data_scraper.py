@@ -55,7 +55,7 @@ class RepositoryDataScraper:
                 # Not sure if this is even correct
                 # Ancestor is towards newer commits
                 if self.repository.is_ancestor(commit_sha, branch_commit):
-                    branches_containing_commit.append(branch)
+                    branches_containing_commit.append(branch.name)
             except GitCommandError as e:
                 print(f"Error while processing branch {branch}: {e}")
                 continue
