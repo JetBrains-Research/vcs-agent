@@ -71,7 +71,7 @@ class RepositoryDataScraper:
 
     def compute_file_commit_grams(self):
         valid_change_types = ['A', 'M', 'MM']
-        for commit in self.repository.iter_commits(all=True):  # We will visit each commit exactly once
+        for commit in self.repository.iter_commits(all=True, topo_order=True):  # We will visit each commit exactly once
             branches_with_commit = self.find_branches_containing_commit(commit.hexsha)
 
             changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
