@@ -137,4 +137,14 @@ class RepositoryDataScraper:
 
                     self.state[branch] = new_state
 
+        # After we are done with all commits, the state might contain valid commits if we have a
+        # file commit-gram lasting until the last commit (ie we have just seen the file and then terminate)
+        # To capture this edge case we need to iterate over the state one more time.
+        for branch in self.state:
+            for file in self.state[branch]:
+                if self.state[branch][file]['times_seen_consecutively'] >= self.sliding_window_size:
+                    self.update_accumulator_with(self.state[branch][file], file, branch)
+
+        # Clean up
+        self.state = None
         print(self.accumulator)
