@@ -1,5 +1,6 @@
 from git import Repo, GitCommandError
 import pandas as pd
+import re
 
 
 class RepositoryDataScraper:
@@ -16,6 +17,11 @@ class RepositoryDataScraper:
     # Maintains a state for each file currently in scope. Each scope is defined by the overlap size n, if we do not
     # see the file again after n steps we remove it from the state
     state = None
+
+    # Counters for specific commit types
+    n_merge_commits = 0
+    n_cherry_pick_commits = 0
+    n_merge_commits_with_resolved_conflicts = 0
 
     def __init__(self, repository: Repo, sliding_window_size: int = 3):
         if repository is None:
@@ -72,6 +78,19 @@ class RepositoryDataScraper:
     def compute_file_commit_grams(self):
         valid_change_types = ['A', 'M', 'MM']
         for commit in self.repository.iter_commits(all=True, topo_order=True):  # We will visit each commit exactly once
+
+            is_merge_commit = False
+            # Demo repo ground truth = 3
+            # Merge commits
+            if len(commit.parents) > 1:
+                self.n_merge_commits += 1
+                is_merge_commit = True
+
+            # Cherry-pick commits
+            cherry_pick_pattern = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
+            if cherry_pick_pattern.search(commit.message):
+                self.n_cherry_pick_commits += 1
+
             branches_with_commit = self.find_branches_containing_commit(commit.hexsha)
 
             changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
@@ -102,6 +121,9 @@ class RepositoryDataScraper:
 
                     change_type, file = changes_to_unpack
                     affected_files.append(file)
+
+                    if is_merge_commit and change_type == 'MM':
+                        self.n_merge_commits_with_resolved_conflicts += 1
 
                     # Update the file state for every branch with this commit
                     # Otherwise ignore this commit (dont update state)
