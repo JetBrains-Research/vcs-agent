@@ -147,4 +147,3 @@ class RepositoryDataScraper:
 
         # Clean up
         self.state = None
-        print(self.accumulator)
