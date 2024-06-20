@@ -25,6 +25,8 @@ if __name__ == '__main__':
             if 'already exists' in e.stderr:
                 print('Repository already exists, using local directory instead of cloning.')
                 repo_instance = Repo(repository_path)
+            else:
+                raise e
 
         os.chdir(os.path.join(path_to_data, repository_path))
     #os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
