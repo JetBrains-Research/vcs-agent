@@ -44,12 +44,10 @@ class RepositoryDataScraper:
         # Filter head out of branches to avoid duplicate state tracking
         #self.branches = [ref.name for ref in self.repository.refs if 'HEAD' not in ref.name]
 
-    def update_accumulator_with(self, file_state: dict, file_to_remove: str, branch: str):
-        if file_state['times_seen_consecutively'] >= self.sliding_window_size:
-            self.accumulator.append(
-                {'file': file_to_remove, 'branch': branch, 'first_commit': file_state['first_commit'],
-                 'last_commit': file_state['last_commit'],
-                 'times_seen_consecutively': file_state['times_seen_consecutively']})
+    def update_accumulator_with(self, file_state: dict, file: str):
+        self.accumulator.append(
+            {'file': file, 'first_commit': file_state['first_commit'], 'last_commit': file_state['last_commit'],
+             'times_seen_consecutively': file_state['times_seen_consecutively']})
 
     def scrape(self):
         valid_change_types = ['M', 'MM', 'A']
