@@ -1,5 +1,6 @@
 from git import Repo, GitCommandError
 import pandas as pd
+from tqdm import tqdm
 import re
 import os
 
@@ -49,6 +50,9 @@ class RepositoryDataScraper:
     def scrape(self):
         valid_change_types = ['M', 'MM', 'A']
         for commit in self.repository.iter_commits(all=True, topo_order=True):
+
+            num_python_files += len(python_files)
+            num_total_files += len(total_files)
 
     def scrape_commit_based_metadata(self):
         # NOTE: Took 3:21 min for 1 repo with 5k commits
