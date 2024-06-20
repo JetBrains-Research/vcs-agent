@@ -1,8 +1,7 @@
-from git import Repo, GitCommandError
-import pandas as pd
-from tqdm import tqdm
+from git import Repo
 import re
 import os
+from typing import Dict
 
 from programming_language import ProgrammingLanguage
 
