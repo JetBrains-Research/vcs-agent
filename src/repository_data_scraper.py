@@ -41,7 +41,7 @@ class RepositoryDataScraper:
                  'last_commit': file_state['last_commit'],
                  'times_seen_consecutively': file_state['times_seen_consecutively']})
 
-    def compute_file_commit_grams(self):
+    def scrape(self):
         valid_change_types = ['M', 'MM', 'A']
         for commit in self.repository.iter_commits(all=True, topo_order=True):
 
@@ -77,6 +77,7 @@ class RepositoryDataScraper:
                     change_type, file = changes_to_unpack
                     affected_files.append(file)
 
+                    # Ground truth for demo_repo = 2
                     if is_merge_commit and change_type == 'MM':
                         self.n_merge_commits_with_resolved_conflicts += 1
 

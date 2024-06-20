@@ -32,7 +32,7 @@ if __name__ == '__main__':
     #os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
 
         repo_scraper = RepositoryDataScraper(repository=repo_instance, sliding_window_size=2)
-        repo_scraper.compute_file_commit_grams()
+        repo_scraper.scrape()
 
         print(f'Stats for repository {repository_metadata["name"]}:\n'
               f'Branches: {repository_metadata['branches']}\n'
