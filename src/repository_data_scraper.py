@@ -1,6 +1,8 @@
 from git import Repo, GitCommandError
 import pandas as pd
 import re
+import os
+
 
 def is_merge_commit(commit):
     return len(commit.parents) > 1
@@ -48,7 +50,12 @@ class RepositoryDataScraper:
         valid_change_types = ['M', 'MM', 'A']
         for commit in self.repository.iter_commits(all=True, topo_order=True):
 
-            is_merge_commit = self.does_commit_have_multiple_parents(commit)
+    def scrape_commit_based_metadata(self):
+        # NOTE: Took 3:21 min for 1 repo with 5k commits
+        for commit in tqdm([c for c in self.repository.iter_commits(all=True, topo_order=True)],
+                           desc=f'Scraping commit metadata...'):
+            if is_merge_commit(commit):
+                self.n_merge_commits += 1
             self.update_cherry_pick_commit_counter(commit)
 
             changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
@@ -59,7 +66,6 @@ class RepositoryDataScraper:
             # This is important, because operations on the state, when we dont want to perform them
             # can lead to flaky behaviour. This is needed for the cleanup phase that removes stale files.
             # Implicitly ensures that we len(changes_in_commit) > 0, because otherwise we would not iterate at all
-            should_process_commit = False
             for change in changes_in_commit:
                 change_type = change.split('\t')[0]
                 if is_merge_commit and change_type == 'MM':
