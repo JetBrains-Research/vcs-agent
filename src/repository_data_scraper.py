@@ -42,22 +42,11 @@ class RepositoryDataScraper:
                  'times_seen_consecutively': file_state['times_seen_consecutively']})
 
     def compute_file_commit_grams(self):
-        valid_change_types = ['A', 'M', 'MM']
-        for commit in self.repository.iter_commits(all=True, topo_order=True):  # We will visit each commit exactly once
+        valid_change_types = ['M', 'MM', 'A']
+        for commit in self.repository.iter_commits(all=True, topo_order=True):
 
-            is_merge_commit = False
-            # Demo repo ground truth = 3
-            # Merge commits
-            if len(commit.parents) > 1:
-                self.n_merge_commits += 1
-                is_merge_commit = True
-
-            # Cherry-pick commits
-            cherry_pick_pattern = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
-            if cherry_pick_pattern.search(commit.message):
-                self.n_cherry_pick_commits += 1
-
-            branches_with_commit = self.find_branches_containing_commit(commit.hexsha)
+            is_merge_commit = self.does_commit_have_multiple_parents(commit)
+            self.update_cherry_pick_commit_counter(commit)
 
             changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
             changes_in_commit = changes_in_commit[1:]  # remove commit hash and message
@@ -135,3 +124,17 @@ class RepositoryDataScraper:
 
         # Clean up
         self.state = None
+
+    def update_cherry_pick_commit_counter(self, commit):
+        cherry_pick_pattern = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
+        if cherry_pick_pattern.search(commit.message):
+            self.n_cherry_pick_commits += 1
+
+    def does_commit_have_multiple_parents(self, commit):
+        is_merge_commit = False
+        # Demo repo ground truth = 3
+        # Merge commits
+        if len(commit.parents) > 1:
+            self.n_merge_commits += 1
+            is_merge_commit = True
+        return is_merge_commit
