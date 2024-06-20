@@ -2,6 +2,9 @@ from git import Repo, GitCommandError
 import pandas as pd
 import re
 
+def is_merge_commit(commit):
+    return len(commit.parents) > 1
+
 
 class RepositoryDataScraper:
     repository = None
@@ -59,83 +62,10 @@ class RepositoryDataScraper:
             should_process_commit = False
             for change in changes_in_commit:
                 change_type = change.split('\t')[0]
-                should_process_commit = change_type in valid_change_types
-                if should_process_commit:
-                    break
-
-            if should_process_commit:
-                # Commit has changes
-                affected_files = []
-
-                # Parse changes
-                # Do we need to update the state of this particular file?
-                for change_in_commit in changes_in_commit:
-                    changes_to_unpack = change_in_commit.split('\t')
-                    if changes_to_unpack[0] not in valid_change_types:
-                        continue
-
-                    change_type, file = changes_to_unpack
-                    affected_files.append(file)
-
-                    # Ground truth for demo_repo = 2
-                    if is_merge_commit and change_type == 'MM':
-                        self.n_merge_commits_with_resolved_conflicts += 1
-
-                    # Update the file state for every branch with this commit
-                    # Otherwise ignore this commit (dont update state)
-                    for branch in branches_with_commit:
-                        # We should maintain a state for this branch, ensure that we are
-                        if branch not in self.state:
-                            self.state[branch] = {}
-
-                        if file in self.state[branch]:
-                            # We are maintaining a state for this file on this branch
-                            self.state[branch][file]['times_seen_consecutively'] = self.state[branch][file][
-                                                                                  'times_seen_consecutively'] + 1
-
-                            if self.state[branch][file]['times_seen_consecutively'] >= self.sliding_window_size:
-                                self.state[branch][file]['last_commit'] = commit.hexsha
-                        else:
-                            # We are not currently maintaining a state for this file in this branch, but have
-                            # detected it Need to set up the state dict
-                            self.state[branch][file] = {'first_commit': commit.hexsha, 'last_commit': commit.hexsha,
-                                                   'times_seen_consecutively': 1}
-
-                    # We updated (Add, Update) one file of the commit for all affected branches at this point
-                # (Add, Update) ALL files of the commit for all affected branches
-                # Now we only need to remove stale file states (files that were not found in the commit)
-                for branch in branches_with_commit:
-                    # Only do this for branches affected by the commit
-                    new_state = {}
-                    for file in self.state[branch]:
-                        if file in affected_files:
-                            new_state[file] = self.state[branch][file]
-                        else:
-                            self.update_accumulator_with(self.state[branch][file], file, branch)
-
-                    self.state[branch] = new_state
-
-        # After we are done with all commits, the state might contain valid commits if we have a
-        # file commit-gram lasting until the last commit (ie we have just seen the file and then terminate)
-        # To capture this edge case we need to iterate over the state one more time.
-        for branch in self.state:
-            for file in self.state[branch]:
-                if self.state[branch][file]['times_seen_consecutively'] >= self.sliding_window_size:
-                    self.update_accumulator_with(self.state[branch][file], file, branch)
-
-        # Clean up
-        self.state = None
+                if is_merge_commit and change_type == 'MM':
+                    self.n_merge_commits_with_resolved_conflicts += 1
 
     def update_cherry_pick_commit_counter(self, commit):
         cherry_pick_pattern = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
         if cherry_pick_pattern.search(commit.message):
             self.n_cherry_pick_commits += 1
-
-    def does_commit_have_multiple_parents(self, commit):
-        is_merge_commit = False
-        # Demo repo ground truth = 3
-        # Merge commits
-        if len(commit.parents) > 1:
-            self.n_merge_commits += 1
-            is_merge_commit = True
-        return is_merge_commit
