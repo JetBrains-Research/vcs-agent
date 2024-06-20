@@ -3,6 +3,7 @@ from git import Repo, GitCommandError
 import os
 import pandas as pd
 
+from programming_language import ProgrammingLanguage
 
 if __name__ == '__main__':
     # Navigate to project root
@@ -31,7 +32,8 @@ if __name__ == '__main__':
         os.chdir(os.path.join(path_to_data, repository_path))
     #os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
 
-        repo_scraper = RepositoryDataScraper(repository=repo_instance, sliding_window_size=2)
+        repo_scraper = RepositoryDataScraper(repository=repo_instance, sliding_window_size=2,
+                                             language_to_scrape_for=ProgrammingLanguage.PYTHON)
         repo_scraper.scrape()
 
         print(f'Stats for repository {repository_metadata["name"]}:\n'

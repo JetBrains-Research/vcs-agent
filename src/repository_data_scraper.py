@@ -4,6 +4,8 @@ from tqdm import tqdm
 import re
 import os
 
+from programming_language import ProgrammingLanguage
+
 
 def is_merge_commit(commit):
     return len(commit.parents) > 1
@@ -11,6 +13,7 @@ def is_merge_commit(commit):
 
 class RepositoryDataScraper:
     repository = None
+    language_to_scrape_for: ProgrammingLanguage = None
     sliding_window_size = 3
 
     # Accumulates file-commit grams If we detect a series of n consecutive modifications of the same file we append a
@@ -29,7 +32,7 @@ class RepositoryDataScraper:
     n_cherry_pick_commits = 0
     n_merge_commits_with_resolved_conflicts = 0
 
-    def __init__(self, repository: Repo, sliding_window_size: int = 3):
+    def __init__(self, repository: Repo, sliding_window_size: int = 3, language_to_scrape_for: ProgrammingLanguage = None):
         if repository is None:
             raise ValueError("Please provide a repository instance to scrape from.")
 
@@ -37,6 +40,7 @@ class RepositoryDataScraper:
         self.sliding_window_size = sliding_window_size
         self.accumulator = []
         self.state = {}
+        self.language_to_scrape_for = language_to_scrape_for
         # Filter head out of branches to avoid duplicate state tracking
         #self.branches = [ref.name for ref in self.repository.refs if 'HEAD' not in ref.name]
 
