@@ -31,37 +31,19 @@ class RepositoryDataScraper:
         self.sliding_window_size = sliding_window_size
         self.accumulator = []
         self.state = {}
-        self.setup_branches()
-
-    def setup_branches(self):
-        branches = pd.Series(self.repository.git.branch('-a').split('\n'), name='branch_names')
-
-        # Branches will initially just be remote, to check them out and pull them we clean them by removing:
-        #   the remote prefix
-        #   any whitespace
-        #   literal line breaks
-        #   the asterisk denoting the current branch
-        branches = branches.str.replace(r'(remotes/origin/|\s*|\n|\*)', '', regex=True)
-
-        # Then we remove the branch pointed at by the head (this is just METADATA and the branch would be duplicated
-        # otherwise) E.g. HEAD->master and master, we want to keep master
-        branches = branches[~branches.str.contains('HEAD->')]
-
-        # Ensure that commits on remote branches become locally available in GitPython
-        for branch in branches:
-            self.repository.git.checkout(branch)
+        self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
 
     def find_branches_containing_commit(self, commit_sha):
         # Find branches containing the commit
         branches_containing_commit = []
-        for branch in self.repository.branches:
+        for branch in self.branches:
             branch_commit = self.repository.commit(branch)
             try:
                 # Check if commit is reachable from the branch
                 # Not sure if this is even correct
                 # Ancestor is towards newer commits
                 if self.repository.is_ancestor(commit_sha, branch_commit):
-                    branches_containing_commit.append(branch.name)
+                    branches_containing_commit.append(branch)
             except GitCommandError as e:
                 print(f"Error while processing branch {branch}: {e}")
                 continue
