@@ -35,7 +35,7 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
              'first_commit': 'cf99230146d4be91004b0a68c17c69ce65945ad2',
              'last_commit': '025e1062182f5ecb404767c17180310923b0f134', 'times_seen_consecutively': 4}]
 
-        self.repository_data_scraper.compute_file_commit_grams()
+        self.repository_data_scraper.scrape()
         candidate_file_commit_grams = self.repository_data_scraper.accumulator
 
         self.assertEqual(len(candidate_file_commit_grams), len(target_file_commit_grams))
