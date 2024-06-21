@@ -68,7 +68,7 @@ class RepositoryDataScraper:
 
     def scrape_file_commit_grams(self, commits: Dict):
         for directory, subdirs, files in os.walk(self.repository_path):
-            if re.match(r'.*(\\|/)\..*', directory): # TODO this regex might not be 100% correct, complains abt escape sequence
+            if re.match(r'.*(\\|/)\..*', directory):
                 continue  # Skip hidden folders
 
             for file in files:
@@ -104,11 +104,16 @@ class RepositoryDataScraper:
         return self.repository.git.blame('--incremental', file)
 
     def parse(self, raw_blame):
-        return [None]
+        commit_hashes = []
+        for line in raw_blame.split('\n'):
+            match = re.search(r'^[a-z0-9]{40}(?= \d){3}', line)
+            if match:
+                commit_hashes.append(match[0])
+        return commit_hashes
 
     def scrape_commit_based_metadata(self):
         # NOTE: Took 3:21 min for 1 repo with 5k commits
-        commits = {}
+        commits = {} # Build hashmap to speed up access, will amortize across file-commit gram search
         for commit in self.repository.iter_commits(all=True, topo_order=True):
             commits.update({commit.hexsha: commit})
 
