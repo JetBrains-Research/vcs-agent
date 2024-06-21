@@ -4,7 +4,7 @@ import os
 from typing import Dict
 
 import re
-from programming_language import ProgrammingLanguage
+from src.programming_language import ProgrammingLanguage
 
 
 def is_merge_commit(commit):
@@ -117,7 +117,8 @@ class RepositoryDataScraper:
     def scrape_commit_based_metadata(self):
         # NOTE: Took 3:21 min for 1 repo with 5k commits
         commits = {} # Build hashmap to speed up access, will amortize across file-commit gram search
-        for commit in self.repository.iter_commits(all=True, topo_order=True):
+        total = [c for c in self.repository.iter_commits(all=True, topo_order=True)]
+        for commit in total[:15]:
             commits.update({commit.hexsha: commit})
 
             if is_merge_commit(commit):
