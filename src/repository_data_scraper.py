@@ -3,6 +3,7 @@ import re
 import os
 from typing import Dict
 
+import re
 from programming_language import ProgrammingLanguage
 
 
@@ -83,22 +84,24 @@ class RepositoryDataScraper:
                     #   Store commits in Hashmap ie dict?
                     commit = commits[commit_hash]
                     parent_hashes = [parent.hexsha for parent in commit.parents]
-                    if (i + 1) < (len(file_commit_history) - 1) and file_commit_history[i + 1] in parent_hashes:
+                    if (i + 1) < len(file_commit_history) and file_commit_history[i + 1] in parent_hashes:
                         # Next commit in file changelist is a parent -> Direct predecessor
-                        # TODO How to deal with multiple file-commit grams per file change history
-                        if self.state[file] is None:
-                            self.state[file] = {'first_commit': file_commit_history[i + 1],
+                        if file not in self.state:
+                            self.state[file] = {'first_commit': file_commit_history[i],
                                                 'last_commit': file_commit_history[i + 1],
                                                 'times_seen_consecutively': 1}
                         else:
                             self.state[file]['last_commit'] = file_commit_history[i + 1]
                             self.state[file]['times_seen_consecutively'] += 1
                     else:
-                        # Subsequent changelist is broken
+                        # Subsequent changelist is broken, or there is just no match (len 0 gram)
                         # Transfer to accumulator and reset state
-                        if self.state[file]['times_seen_consecutively'] >= self.sliding_window_size:
-                            self.update_accumulator_with(self.state[file], file)
-                        self.state[file] = None
+                        if file in self.state:
+                            if self.state[file]['times_seen_consecutively'] >= self.sliding_window_size:
+                                self.update_accumulator_with(self.state[file], file)
+                            del self.state[file]
+
+        print(self.accumulator)
 
     def get_raw_git_blame_for(self, file):
         return self.repository.git.blame('--incremental', file)
