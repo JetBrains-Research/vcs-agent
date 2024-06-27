@@ -51,8 +51,8 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
         os.chdir('../..')
         path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
-        demo_repo = Repo(os.path.join(path_to_repositories, 'yury-demo'))
-        os.chdir(os.path.join(path_to_repositories, 'yury-demo'))
+        demo_repo = Repo(os.path.join(path_to_repositories, 'mixed-file-types-demo'))
+        os.chdir(os.path.join(path_to_repositories, 'mixed-file-types-demo'))
 
         # PYTHON should not contain TEXT grams
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
