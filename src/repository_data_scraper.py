@@ -1,6 +1,6 @@
 from git import Repo, GitCommandError
-import pandas as pd
 import re
+from queue import Queue
 from tqdm import tqdm
 
 
@@ -63,10 +63,14 @@ class RepositoryDataScraper:
 
     def compute_file_commit_grams(self):
         valid_change_types = ['A', 'M', 'MM']
-        for branch in self.branches:
-            totals = [c for c in self.repository.iter_commits(rev=branch, topo_order=True)]
-            for commit in tqdm(totals, desc=f'Parsing branch {branch}'):
+        for branch in tqdm(self.branches, desc=f'Parsing branches ...'):
+            commit = [c for c in self.repository.iter_commits(rev=branch, n=1)][0]
 
+            frontier = Queue(maxsize=0)
+            frontier.put(commit)
+
+            while not frontier.empty():
+                commit = frontier.get()
                 is_merge_commit = len(commit.parents) > 1
 
                 # Ensure we early stop if we run into a visited commit
@@ -74,6 +78,15 @@ class RepositoryDataScraper:
                 # So at every branch origin eventually.
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
+
+                    if is_merge_commit:
+                        for parent in commit.parents:
+                            # Ensure we continue on any path that is left available
+                            # If the FIFO causes problems, I can also use weighting with a prio queue and len(parents)
+                            if parent.hexsha not in self.visited_commits:
+                                frontier.put(parent)
+                    elif len(commit.parents) == 1:
+                        frontier.put(commit.parents[0])
                 else:
                     # If we hit a commit which we have already seen, it means we are hitting another branch
                     # Thus we we can stop here
