@@ -102,8 +102,6 @@ class RepositoryDataScraper:
                 if cherry_pick_pattern.search(commit.message):
                     self.n_cherry_pick_commits += 1
 
-                #branches_with_commit = self.find_branches_containing_commit(commit.hexsha)
-
                 changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
                 changes_in_commit = changes_in_commit[1:]  # remove commit hash and message
                 changes_in_commit = [change for change in changes_in_commit if change]  # filter empty lines
@@ -158,7 +156,6 @@ class RepositoryDataScraper:
                         # We updated (Add, Update) one file of the commit for all affected branches at this point
                     # (Add, Update) ALL files of the commit for all affected branches
                     # Now we only need to remove stale file states (files that were not found in the commit)
-                    #for branch in branches_with_commit:
                     # Only do this for branches affected by the commit
                     new_state = {}
                     for file in self.state[branch]:
