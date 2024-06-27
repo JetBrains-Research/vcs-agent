@@ -37,23 +37,6 @@ class RepositoryDataScraper:
         self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
         self.visited_commits = set()
 
-    def find_branches_containing_commit(self, commit_sha):
-        # Find branches containing the commit
-        branches_containing_commit = []
-        for branch in self.branches:
-            branch_commit = self.repository.commit(branch)
-            try:
-                # Check if commit is reachable from the branch
-                # Not sure if this is even correct
-                # Ancestor is towards newer commits
-                if self.repository.is_ancestor(commit_sha, branch_commit):
-                    branches_containing_commit.append(branch)
-            except GitCommandError as e:
-                print(f"Error while processing branch {branch}: {e}")
-                continue
-
-        return branches_containing_commit
-
     def update_accumulator_with(self, file_state: dict, file_to_remove: str, branch: str):
         if file_state['times_seen_consecutively'] >= self.sliding_window_size:
             self.accumulator.append(
