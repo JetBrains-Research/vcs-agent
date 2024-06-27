@@ -2,6 +2,7 @@ import unittest
 import os
 from git import Repo
 from src.repository_data_scraper import RepositoryDataScraper
+from src.programming_language import ProgrammingLanguage
 
 
 class ComputeFileCommitGramsTestCase(unittest.TestCase):
@@ -13,7 +14,9 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
         demo_repo = Repo(os.path.join(path_to_repositories, 'demo-repo'))
         os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
 
-        self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo, sliding_window_size=2)
+        self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
+                                                             programming_language=ProgrammingLanguage.TEXT,
+                                                             sliding_window_size=2)
 
     def test_should_generate_target_file_commit_grams(self):
         target_file_commit_grams = [{
