@@ -69,6 +69,11 @@ class RepositoryDataScraper:
             frontier = Queue(maxsize=0)
             frontier.put(commit)
 
+            # If we hit a commit that was already covered by another branch, continue for
+            # self.sliding_window_size - 1 commits to cover ngrams overlapping, with at least one
+            # commit on the current branch
+            keepalive = self.sliding_window_size - 1
+
             while not frontier.empty():
                 commit = frontier.get()
                 is_merge_commit = len(commit.parents) > 1
@@ -87,9 +92,12 @@ class RepositoryDataScraper:
                                 frontier.put(parent)
                     elif len(commit.parents) == 1:
                         frontier.put(commit.parents[0])
-                else:
+                elif keepalive > 0:
                     # If we hit a commit which we have already seen, it means we are hitting another branch
-                    # Thus we we can stop here
+                    # To catch overlaps, we continue for keepalive commits
+                    keepalive -= 1
+                else:
+                    # Now that we also handled overlaps, stop processing this branch
                     break
 
                 # Demo repo ground truth = 3
