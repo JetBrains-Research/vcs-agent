@@ -1,7 +1,8 @@
-from git import Repo, GitCommandError
+from git import Repo
 import re
 from queue import Queue
 from tqdm import tqdm
+from src.programming_language import ProgrammingLanguage
 
 
 class RepositoryDataScraper:
@@ -25,8 +26,9 @@ class RepositoryDataScraper:
     n_merge_commits = 0
     n_cherry_pick_commits = 0
     n_merge_commits_with_resolved_conflicts = 0
+    programming_language = None
 
-    def __init__(self, repository: Repo, sliding_window_size: int = 3):
+    def __init__(self, repository: Repo, programming_language: ProgrammingLanguage, sliding_window_size: int = 3):
         if repository is None:
             raise ValueError("Please provide a repository instance to scrape from.")
 
@@ -36,6 +38,7 @@ class RepositoryDataScraper:
         self.state = {}
         self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
         self.visited_commits = set()
+        self.programming_language = programming_language
 
     def update_accumulator_with(self, file_state: dict, file_to_remove: str, branch: str):
         if file_state['times_seen_consecutively'] >= self.sliding_window_size:
@@ -98,11 +101,11 @@ class RepositoryDataScraper:
                 changes_in_commit = [change for change in changes_in_commit if change]  # filter empty lines
 
                 # If any change in this commit is a valid change, we want to update the state
-                # This is important, because operations on the state, when we dont want to perform them
-                # can lead to flaky behaviour. This is needed for the cleanup phase that removes stale files.
-                # Implicitly ensures that we len(changes_in_commit) > 0, because otherwise we would not iterate at all
+                # This is needed for the cleanup phase that removes stale files. Implicitly ensures that
+                # len(changes_in_commit) > 0, because in this case should_process_commit remains False
                 should_process_commit = False
                 for change in changes_in_commit:
+                    # Change types such as rename yield a list of length 3 here, cannot simply unpack in every case
                     change_type = change.split('\t')[0]
                     should_process_commit = change_type in valid_change_types
                     if should_process_commit:
@@ -116,10 +119,15 @@ class RepositoryDataScraper:
                     # Do we need to update the state of this particular file?
                     for change_in_commit in changes_in_commit:
                         changes_to_unpack = change_in_commit.split('\t')
+                        # Some changes in the commit might not be of a supported change type
                         if changes_to_unpack[0] not in valid_change_types:
                             continue
 
+                        # Only maintain a state for files of required programming_language
                         change_type, file = changes_to_unpack
+                        if self.programming_language.value not in file:
+                            continue
+
                         affected_files.append(file)
 
                         if is_merge_commit and change_type == 'MM':
@@ -148,14 +156,15 @@ class RepositoryDataScraper:
                     # (Add, Update) ALL files of the commit for all affected branches
                     # Now we only need to remove stale file states (files that were not found in the commit)
                     # Only do this for branches affected by the commit
-                    new_state = {}
-                    for file in self.state[branch]:
-                        if file in affected_files:
-                            new_state[file] = self.state[branch][file]
-                        else:
-                            self.update_accumulator_with(self.state[branch][file], file, branch)
+                    if self.state:
+                        new_state = {}
+                        for file in self.state[branch]:
+                            if file in affected_files:
+                                new_state[file] = self.state[branch][file]
+                            else:
+                                self.update_accumulator_with(self.state[branch][file], file, branch)
 
-                    self.state[branch] = new_state
+                        self.state[branch] = new_state
 
             # After we are done with all commits, the state might contain valid commits if we have a
             # file commit-gram lasting until the last commit (ie we have just seen the file and then terminate)

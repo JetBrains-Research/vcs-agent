@@ -2,7 +2,7 @@ from repository_data_scraper import RepositoryDataScraper
 from git import Repo, GitCommandError
 import os
 import pandas as pd
-
+from programming_language import ProgrammingLanguage
 
 if __name__ == '__main__':
     # Navigate to project root
