@@ -6,8 +6,7 @@ from src.programming_language import ProgrammingLanguage
 
 
 class ComputeFileCommitGramsTestCase(unittest.TestCase):
-
-    def setUp(self):
+    def test_should_generate_target_file_commit_grams(self):
         os.chdir('../..')
         path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
@@ -18,7 +17,6 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
                                                              programming_language=ProgrammingLanguage.TEXT,
                                                              sliding_window_size=2)
 
-    def test_should_generate_target_file_commit_grams(self):
         target_file_commit_grams = [{
             'file': 'document2.txt',
             'branch': 'compliance-doc2',
@@ -48,6 +46,37 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
 
         for candidate_file_commit_gram in candidate_file_commit_grams:
             self.assertIn(candidate_file_commit_gram, target_file_commit_grams)
+
+    def test_accumulator_should_not_contain_grams_of_invalid_file_type(self):
+        os.chdir('../..')
+        path_to_repositories = os.path.join(os.getcwd(), 'repos')
+
+        demo_repo = Repo(os.path.join(path_to_repositories, 'yury-demo'))
+        os.chdir(os.path.join(path_to_repositories, 'yury-demo'))
+
+        # PYTHON should not contain TEXT grams
+        self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
+                                                             programming_language=ProgrammingLanguage.PYTHON,
+                                                             sliding_window_size=2)
+
+        self.repository_data_scraper.compute_file_commit_grams()
+        candidate_file_commit_grams = self.repository_data_scraper.accumulator
+
+        for candidate_file_commit_gram in candidate_file_commit_grams:
+            self.assertTrue(
+                self.repository_data_scraper.programming_language.value in candidate_file_commit_gram['file'])
+
+        # TEXT should not contain PYTHON grams
+        self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
+                                                             programming_language=ProgrammingLanguage.TEXT,
+                                                             sliding_window_size=2)
+
+        self.repository_data_scraper.compute_file_commit_grams()
+        candidate_file_commit_grams = self.repository_data_scraper.accumulator
+
+        for candidate_file_commit_gram in candidate_file_commit_grams:
+            self.assertTrue(
+                self.repository_data_scraper.programming_language.value in candidate_file_commit_gram['file'])
 
 
 if __name__ == '__main__':
