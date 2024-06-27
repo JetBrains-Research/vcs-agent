@@ -2,6 +2,7 @@ from git import Repo, GitCommandError
 import re
 from queue import Queue
 from tqdm import tqdm
+from programming_language import ProgrammingLanguage
 
 
 class RepositoryDataScraper:
@@ -25,8 +26,9 @@ class RepositoryDataScraper:
     n_merge_commits = 0
     n_cherry_pick_commits = 0
     n_merge_commits_with_resolved_conflicts = 0
+    programming_language = None
 
-    def __init__(self, repository: Repo, sliding_window_size: int = 3):
+    def __init__(self, repository: Repo, programming_language: ProgrammingLanguage, sliding_window_size: int = 3):
         if repository is None:
             raise ValueError("Please provide a repository instance to scrape from.")
 
@@ -36,6 +38,7 @@ class RepositoryDataScraper:
         self.state = {}
         self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
         self.visited_commits = set()
+        self.programming_language = programming_language
 
     def update_accumulator_with(self, file_state: dict, file_to_remove: str, branch: str):
         if file_state['times_seen_consecutively'] >= self.sliding_window_size:
