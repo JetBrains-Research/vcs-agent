@@ -24,10 +24,6 @@ class RepositoryDataScraper:
     visited_commits = None
     seen_commit_messages = None
 
-    # Counters for specific commit types
-    n_merge_commits = 0
-    n_cherry_pick_commits = 0
-    n_merge_commits_with_resolved_conflicts = 0
     programming_language = None
 
     def __init__(self, repository: Repo, programming_language: ProgrammingLanguage, sliding_window_size: int = 3):
@@ -87,18 +83,10 @@ class RepositoryDataScraper:
                     break
 
                 if is_merge_commit:
-                    self.n_merge_commits += 1
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
                                            'parents': [parent.hexsha for parent in commit.parents]}
 
-                # Cherry-pick commits
-                # re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
-                # Captures exactly the message appened to the cherry pick commit message by using the
-                weak_cherry_pick_indicator = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
-                if weak_cherry_pick_indicator.search(commit.message):
-                    self.n_cherry_pick_commits += 1
-
-                # -x option in git cherry-pick. Sadly this is no longer the default.
+                # Based on the string appended to the commit message by the -x option in git cherry-pick
                 cherry_pick_pattern = re.compile(r'(?<=cherry picked from commit )[a-z0-9]{40}')
                 potential_cherry_pick_match = cherry_pick_pattern.search(commit.message)
                 if potential_cherry_pick_match:
@@ -143,7 +131,6 @@ class RepositoryDataScraper:
                         affected_files.append(file)
 
                         if is_merge_commit and change_type == 'MM':
-                            self.n_merge_commits_with_resolved_conflicts += 1
                             merge_commit_sample['had_conflicts'] = True
 
                         # Update the file state for every branch with this commit
