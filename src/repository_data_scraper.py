@@ -180,24 +180,23 @@ class RepositoryDataScraper:
             self.state = {}
 
         start = time.time()
-        self.accumulator['cherry_pick_scenarios'] += self.mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
+        self.accumulator['cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
 
     def _process_cherry_pick_scenario(self, commit: Commit):
         """
         Checks the commit message for a cherry-pick scenario and, if present, adds it to the class's accumulator.
 
-        Args:
-            commit (Commit): A commit object to be checked for a cherry-pick scenario.
-
-        Returns:
-            This function does not return a value. Instead, it updates the class's accumulator with the following
+        This function does not return a value. Instead, it updates the class's accumulator with the following
              data structure:
             {
                 'cherry_pick_commit': <commit hash (str)>,
                 'cherry_commit': <matched cherry-pick commit (str)>,
                 'parents': <list of parent hashes (list[str])>
             }
+
+        Args:
+            commit (Commit): A commit object to be checked for a cherry-pick scenario.
         """
         potential_cherry_pick_match = self._cherry_pick_pattern.search(commit.message)
         if potential_cherry_pick_match:
@@ -207,11 +206,21 @@ class RepositoryDataScraper:
                 'parents': [parent.hexsha for parent in commit.parents]
             })
 
-    def _update_frontier_with(self, commit, frontier, is_merge_commit):
+    def _update_frontier_with(self, commit: Commit, frontier: Queue, is_merge_commit: bool):
+        """
+        Adds the commit's parents to the frontier and returns the frontier.
+
+        Args:
+            commit (Commit): The commit object to update the frontier with.
+            frontier (Queue): The queue containing the commits to be processed.
+            is_merge_commit (bool): A boolean indicating whether the given commit is a merge commit.
+
+        Returns:
+            frontier (Queue): The updated queue containing the commits to be processed.
+        """
         if is_merge_commit:
             for parent in commit.parents:
                 # Ensure we continue on any path that is left available
-                # If the FIFO causes problems, I can also use weighting with a prio queue and len(parents)
                 if parent.hexsha not in self.visited_commits:
                     frontier.put(parent)
         elif len(commit.parents) == 1:
@@ -219,13 +228,20 @@ class RepositoryDataScraper:
 
         return frontier
 
-    def _update_commit_message_tracker(self, commit):
+    def _update_commit_message_tracker(self, commit: Commit):
+        """
+        If a new commit message is detected, adds a new dict element, otherwise appends the commit to the
+        list at `commit.message`.
+
+        Args:
+            commit (Commit): The commit to update the commit message tracker with.
+        """
         if commit.message in self.seen_commit_messages:
             self.seen_commit_messages[commit.message].append(commit)
         else:
             self.seen_commit_messages.update({commit.message: [commit]})
 
-    def mine_commits_with_duplicate_messages_for_cherry_pick_scenarios(self):
+    def _mine_commits_with_duplicate_messages_for_cherry_pick_scenarios(self):
         duplicate_messages = [{k: v} for k, v in self.seen_commit_messages.items() if len(v) > 1]
 
         if len(duplicate_messages) == 0:
@@ -239,7 +255,7 @@ class RepositoryDataScraper:
             for i, pivot_commit in enumerate(commits):
                 comparison_targets = commits[i + 1:]  # Only process triangular sub-matrix without diagonal
                 for comparison_target in comparison_targets:
-                    if self.do_patch_ids_match(pivot_commit, comparison_target):
+                    if self._do_patch_ids_match(pivot_commit, comparison_target):
                         if pivot_commit.committed_datetime < comparison_target.committed_datetime:
                             additional_cherry_pick_scenarios.append({
                                 'cherry_pick_commit': comparison_target.hexsha,
@@ -255,14 +271,14 @@ class RepositoryDataScraper:
         print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
         return additional_cherry_pick_scenarios
 
-    def do_patch_ids_match(self, commit1: Commit, commit2: Commit) -> bool:
+    def _do_patch_ids_match(self, commit1: Commit, commit2: Commit) -> bool:
         # Generate the diff for the commit
-        sha1 = self.generate_hash_from_patch(commit1)
-        sha2 = self.generate_hash_from_patch(commit2)
+        sha1 = self._generate_hash_from_patch(commit1)
+        sha2 = self._generate_hash_from_patch(commit2)
 
         return sha1 == sha2
 
-    def generate_hash_from_patch(self, commit: Commit) -> str:
+    def _generate_hash_from_patch(self, commit: Commit) -> str:
         diff = commit.diff(other=commit.parents[0] if commit.parents else NULL_TREE, create_patch=True)
         try:
             diff_content = ''.join(d.diff.decode('utf-8') for d in diff)
