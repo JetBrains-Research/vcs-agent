@@ -105,6 +105,29 @@ class ScrapeTestCase(unittest.TestCase):
         for candidate_merge_scenario in candidate_merge_scenarios:
             self.assertIn(candidate_merge_scenario, target_merge_scenarios)
 
+    def test_should_generate_target_cherry_pick_scenarios(self):
+        os.chdir('../..')
+        path_to_repositories = os.path.join(os.getcwd(), 'repos')
+
+        demo_repo = Repo(os.path.join(path_to_repositories, 'mixed-file-types-demo'))
+        os.chdir(os.path.join(path_to_repositories, 'mixed-file-types-demo'))
+
+        self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
+                                                             programming_language=ProgrammingLanguage.TEXT,
+                                                             sliding_window_size=2)
+
+        target_cherry_pick_scenarios = [{'cherry_pick_commit': '48baa2580692f94643332494d479a06e63f3b5cc',
+                                         'cherry_commit': '2c8c14e9c5747385b6ce3255d65138164059c779',
+                                         'parents': ['c469332e04959f088e0f669c254a18819b6cb791']}]
+
+        self.repository_data_scraper.scrape()
+        candidate_cherry_pick_scenarios = self.repository_data_scraper.accumulator['cherry_pick_scenarios']
+
+        self.assertEqual(len(candidate_cherry_pick_scenarios), len(target_cherry_pick_scenarios))
+
+        for candidate_cherry_pick_scenario in candidate_cherry_pick_scenarios:
+            self.assertIn(candidate_cherry_pick_scenario, target_cherry_pick_scenarios)
+
 
 if __name__ == '__main__':
     unittest.main()
