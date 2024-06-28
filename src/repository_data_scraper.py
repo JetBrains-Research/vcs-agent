@@ -5,6 +5,7 @@ from tqdm import tqdm
 from src.programming_language import ProgrammingLanguage
 import hashlib
 import time
+from typing import List
 
 class RepositoryDataScraper:
     repository = None
@@ -93,9 +94,7 @@ class RepositoryDataScraper:
 
                 self._process_cherry_pick_scenario(commit)
 
-                changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
-                changes_in_commit = changes_in_commit[1:]  # remove commit hash and message
-                changes_in_commit = [change for change in changes_in_commit if change]  # filter empty lines
+                changes_in_commit = self._get_changes_in_commit(commit)
 
                 # If any change in this commit is a valid change, we want to update the state
                 # This is needed for the cleanup phase that removes stale files. Implicitly ensures that
@@ -182,6 +181,23 @@ class RepositoryDataScraper:
         start = time.time()
         self.accumulator['cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
+
+    def _get_changes_in_commit(self, commit: Commit) -> List:
+        """
+        Generates a list of changes in a commit using git show with arguments: name_status=True, format='oneline'.
+        Contains only actual changes. Changes start with a change type followed by the affected file(s).
+        Can affect multiple files for e.g. renaming.
+
+        Args:
+            commit (Commit): The commit object representing the commit for which changes are to be retrieved.
+
+        Returns:
+            List: A list of strings representing the changes in the given commit.
+        """
+        changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
+        changes_in_commit = changes_in_commit[1:]  # remove commit hash and message
+        changes_in_commit = [change for change in changes_in_commit if change]  # filter empty lines
+        return changes_in_commit
 
     def _process_cherry_pick_scenario(self, commit: Commit):
         """
