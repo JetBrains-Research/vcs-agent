@@ -1,9 +1,10 @@
-from git import Repo
+from git import Repo, Commit, NULL_TREE
 import re
 from queue import Queue
 from tqdm import tqdm
 from src.programming_language import ProgrammingLanguage
-
+import hashlib
+import time
 
 class RepositoryDataScraper:
     repository = None
@@ -21,6 +22,7 @@ class RepositoryDataScraper:
     state = None
 
     visited_commits = None
+    seen_commit_messages = None
 
     # Counters for specific commit types
     n_merge_commits = 0
@@ -38,6 +40,7 @@ class RepositoryDataScraper:
         self.state = {}
         self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
         self.visited_commits = set()
+        self.seen_commit_messages = dict()
         self.programming_language = programming_language
 
     def update_accumulator_with_file_commit_gram_scenario(self, file_state: dict, file_to_remove: str, branch: str):
@@ -71,6 +74,11 @@ class RepositoryDataScraper:
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
 
+                    if commit.message in self.seen_commit_messages:
+                        self.seen_commit_messages[commit.message].append(commit)
+                    else:
+                        self.seen_commit_messages.update({commit.message: [commit]})
+
                     if is_merge_commit:
                         for parent in commit.parents:
                             # Ensure we continue on any path that is left available
@@ -92,7 +100,7 @@ class RepositoryDataScraper:
                 if is_merge_commit:
                     self.n_merge_commits += 1
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
-                                                         'parents': [parent.hexsha for parent in commit.parents]}
+                                           'parents': [parent.hexsha for parent in commit.parents]}
 
                 # Cherry-pick commits
                 # re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
@@ -197,3 +205,57 @@ class RepositoryDataScraper:
 
             # Clean up
             self.state = {}
+
+        start = time.time()
+        self.accumulator['cherry_pick_scenarios'] += self.mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
+        print(f'Extra time incurred: {time.time() - start}s')
+
+    def mine_commits_with_duplicate_messages_for_cherry_pick_scenarios(self):
+        duplicate_messages = [{k: v} for k, v in self.seen_commit_messages.items() if len(v) > 1]
+
+        if len(duplicate_messages) == 0:
+            return []
+
+        additional_cherry_pick_scenarios = []
+
+        # We could have n > 1 commits of a message, pairwise computation is costly
+        for duplicate_message in duplicate_messages:
+            commits = next(iter(duplicate_message.values()))
+            for i, pivot_commit in enumerate(commits):
+                comparison_targets = commits[i + 1:]  # Only process triangular sub-matrix without diagonal
+                for comparison_target in comparison_targets:
+                    if self.do_patch_ids_match(pivot_commit, comparison_target):
+                        if pivot_commit.committed_datetime < comparison_target.committed_datetime:
+                            additional_cherry_pick_scenarios.append({
+                                'cherry_pick_commit': comparison_target.hexsha,
+                                'cherry_commit': pivot_commit.hexsha,
+                                'parents': [parent.hexsha for parent in comparison_target.parents]
+                            })
+                        elif pivot_commit.committed_datetime > comparison_target.committed_datetime:
+                            additional_cherry_pick_scenarios.append({
+                                'cherry_pick_commit': pivot_commit.hexsha,
+                                'cherry_commit': comparison_target.hexsha,
+                                'parents': [parent.hexsha for parent in pivot_commit.parents]
+                            })
+        print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
+        return additional_cherry_pick_scenarios
+
+    def do_patch_ids_match(self, commit1: Commit, commit2: Commit) -> bool:
+        # Generate the diff for the commit
+        sha1 = self.generate_hash_from_patch(commit1)
+        sha2 = self.generate_hash_from_patch(commit2)
+
+        return sha1 == sha2
+
+    def generate_hash_from_patch(self, commit: Commit) -> str:
+        diff = commit.diff(other=commit.parents[0] if commit.parents else NULL_TREE, create_patch=True)
+        try:
+            diff_content = ''.join(d.diff.decode('utf-8') for d in diff)
+        except UnicodeDecodeError:
+            return ''
+
+        # Normalize the patch
+        normalized_diff = re.sub(r'^(index|diff|---|\+\+\+) .*\n', '', diff_content, flags=re.MULTILINE)
+        normalized_diff = re.sub(r'^\s*\n', '', normalized_diff, flags=re.MULTILINE)
+
+        return hashlib.sha1(normalized_diff.encode('utf-8')).hexdigest()
