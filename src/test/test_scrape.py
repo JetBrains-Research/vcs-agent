@@ -5,7 +5,7 @@ from src.repository_data_scraper import RepositoryDataScraper
 from src.programming_language import ProgrammingLanguage
 
 
-class ComputeFileCommitGramsTestCase(unittest.TestCase):
+class ScrapeTestCase(unittest.TestCase):
     def test_should_generate_target_file_commit_grams(self):
         os.chdir('../..')
         path_to_repositories = os.path.join(os.getcwd(), 'repos')
