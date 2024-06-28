@@ -36,12 +36,14 @@ class RepositoryDataScraper:
 
         self.repository = repository
         self.sliding_window_size = sliding_window_size
+        self.programming_language = programming_language
+
         self.accumulator = {'file_commit_gram_scenarios': [], 'merge_scenarios': [], 'cherry_pick_scenarios': []}
         self.state = {}
         self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
+
         self.visited_commits = set()
         self.seen_commit_messages = dict()
-        self.programming_language = programming_language
 
     def update_accumulator_with_file_commit_gram_scenario(self, file_state: dict, file_to_remove: str, branch: str):
         if file_state['times_seen_consecutively'] >= self.sliding_window_size:
@@ -53,13 +55,13 @@ class RepositoryDataScraper:
     def scrape(self):
         valid_change_types = ['A', 'M', 'MM']
         for branch in tqdm(self.branches, desc=f'Parsing branches ...'):
-            commit = [c for c in self.repository.iter_commits(rev=branch, n=1)][0]
+            commit = self.repository.commit(branch)
 
             frontier = Queue(maxsize=0)
             frontier.put(commit)
 
             # If we hit a commit that was already covered by another branch, continue for
-            # self.sliding_window_size - 1 commits to cover ngrams overlapping, with at least one
+            # self.sliding_window_size - 1 commits to cover file-commit grams overlapping, with at least one
             # commit on the current branch
             keepalive = self.sliding_window_size - 1
 
@@ -69,8 +71,9 @@ class RepositoryDataScraper:
                 merge_commit_sample = {}
 
                 # Ensure we early stop if we run into a visited commit
-                # This happens whenever the branch from which we started joins the branch from which it originated
-                # So at every branch origin eventually.
+                # This happens whenever this branch (the one currently being processed) joins another branch at
+                # its branch origin, iff we have already processed  a branch running past this branch's origin,
+                # meaning we visited the this branch origin's commit thus all commits thereafter
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
                     self.__update_commit_message_tracker(commit)
