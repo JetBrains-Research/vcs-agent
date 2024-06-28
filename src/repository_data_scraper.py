@@ -73,20 +73,8 @@ class RepositoryDataScraper:
                 # So at every branch origin eventually.
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
-
-                    if commit.message in self.seen_commit_messages:
-                        self.seen_commit_messages[commit.message].append(commit)
-                    else:
-                        self.seen_commit_messages.update({commit.message: [commit]})
-
-                    if is_merge_commit:
-                        for parent in commit.parents:
-                            # Ensure we continue on any path that is left available
-                            # If the FIFO causes problems, I can also use weighting with a prio queue and len(parents)
-                            if parent.hexsha not in self.visited_commits:
-                                frontier.put(parent)
-                    elif len(commit.parents) == 1:
-                        frontier.put(commit.parents[0])
+                    self.__update_commit_message_tracker(commit)
+                    frontier = self.__update_frontier_with(commit, frontier, is_merge_commit)
                 elif keepalive > 0:
                     # If we hit a commit which we have already seen, it means we are hitting another branch
                     # To catch overlaps, we continue for keepalive commits
@@ -95,8 +83,6 @@ class RepositoryDataScraper:
                     # Now that we also handled overlaps, stop processing this branch
                     break
 
-                # Demo repo ground truth = 3
-                # Only increment if it is a new commit that we have not yet seen
                 if is_merge_commit:
                     self.n_merge_commits += 1
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
@@ -209,6 +195,24 @@ class RepositoryDataScraper:
         start = time.time()
         self.accumulator['cherry_pick_scenarios'] += self.mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
+
+    def __update_frontier_with(self, commit, frontier, is_merge_commit):
+        if is_merge_commit:
+            for parent in commit.parents:
+                # Ensure we continue on any path that is left available
+                # If the FIFO causes problems, I can also use weighting with a prio queue and len(parents)
+                if parent.hexsha not in self.visited_commits:
+                    frontier.put(parent)
+        elif len(commit.parents) == 1:
+            frontier.put(commit.parents[0])
+
+        return frontier
+
+    def __update_commit_message_tracker(self, commit):
+        if commit.message in self.seen_commit_messages:
+            self.seen_commit_messages[commit.message].append(commit)
+        else:
+            self.seen_commit_messages.update({commit.message: [commit]})
 
     def mine_commits_with_duplicate_messages_for_cherry_pick_scenarios(self):
         duplicate_messages = [{k: v} for k, v in self.seen_commit_messages.items() if len(v) > 1]
