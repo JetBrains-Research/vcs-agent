@@ -95,9 +95,21 @@ class RepositoryDataScraper:
                                                          'parents': [parent.hexsha for parent in commit.parents]}
 
                 # Cherry-pick commits
-                cherry_pick_pattern = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
-                if cherry_pick_pattern.search(commit.message):
+                # re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
+                # Captures exactly the message appened to the cherry pick commit message by using the
+                weak_cherry_pick_indicator = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
+                if weak_cherry_pick_indicator.search(commit.message):
                     self.n_cherry_pick_commits += 1
+
+                # -x option in git cherry-pick. Sadly this is no longer the default.
+                cherry_pick_pattern = re.compile(r'(?<=cherry picked from commit )[a-z0-9]{40}')
+                potential_cherry_pick_match = cherry_pick_pattern.search(commit.message)
+                if potential_cherry_pick_match:
+                    self.accumulator['cherry_pick_scenarios'].append({
+                        'cherry_pick_commit': commit.hexsha,
+                        'cherry_commit': potential_cherry_pick_match[0],
+                        'parents': [parent.hexsha for parent in commit.parents]
+                    })
 
                 changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
                 changes_in_commit = changes_in_commit[1:]  # remove commit hash and message
