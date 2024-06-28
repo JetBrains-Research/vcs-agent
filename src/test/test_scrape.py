@@ -78,6 +78,33 @@ class ScrapeTestCase(unittest.TestCase):
             self.assertTrue(
                 self.repository_data_scraper.programming_language.value in candidate_file_commit_gram['file'])
 
+    def test_should_generate_target_merge_scenarios(self):
+        os.chdir('../..')
+        path_to_repositories = os.path.join(os.getcwd(), 'repos')
+
+        demo_repo = Repo(os.path.join(path_to_repositories, 'demo-repo'))
+        os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
+
+        self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
+                                                             programming_language=ProgrammingLanguage.TEXT,
+                                                             sliding_window_size=2)
+
+        target_merge_scenarios = [
+            {'merge_commit_hash': '7821ce308f797eeec65da787b96c829238e15d11', 'had_conflicts': True,
+             'parents': ['618b1cb31ac5069b193603e09e3147472166b663', 'e7f94bfac56abc6a0b408fee81c018fd220030f0']},
+            {'merge_commit_hash': 'aeeab817a1bd7d146fc7596546e0c98a0ec94dbc', 'had_conflicts': True,
+             'parents': ['6cd3cd82bfa90b80e9435513a06014ec898de4a2', '464e49457108e9685e0634c9da87254a85c06c07']},
+            {'merge_commit_hash': 'aa744a52fa0a7ee5b21007e64971dc2da7fa228a', 'had_conflicts': False,
+             'parents': ['cf99230146d4be91004b0a68c17c69ce65945ad2', '618b1cb31ac5069b193603e09e3147472166b663']}]
+
+        self.repository_data_scraper.scrape()
+        candidate_merge_scenarios = self.repository_data_scraper.accumulator['merge_scenarios']
+
+        self.assertEqual(len(candidate_merge_scenarios), len(target_merge_scenarios))
+
+        for candidate_merge_scenario in candidate_merge_scenarios:
+            self.assertIn(candidate_merge_scenario, target_merge_scenarios)
+
 
 if __name__ == '__main__':
     unittest.main()
