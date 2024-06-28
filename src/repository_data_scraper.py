@@ -21,6 +21,7 @@ class RepositoryDataScraper:
     state = None
 
     visited_commits = None
+    seen_commit_messages = None
 
     # Counters for specific commit types
     n_merge_commits = 0
@@ -38,6 +39,7 @@ class RepositoryDataScraper:
         self.state = {}
         self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
         self.visited_commits = set()
+        self.seen_commit_messages = dict()
         self.programming_language = programming_language
 
     def update_accumulator_with_file_commit_gram_scenario(self, file_state: dict, file_to_remove: str, branch: str):
@@ -70,6 +72,11 @@ class RepositoryDataScraper:
                 # So at every branch origin eventually.
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
+
+                    if commit.message in self.seen_commit_messages:
+                        self.seen_commit_messages[commit.message].append(commit)
+                    else:
+                        self.seen_commit_messages.update({commit.message: [commit]})
 
                     if is_merge_commit:
                         for parent in commit.parents:
