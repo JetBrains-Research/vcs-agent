@@ -34,20 +34,20 @@ class RepositoryDataScraper:
 
         self.repository = repository
         self.sliding_window_size = sliding_window_size
-        self.accumulator = []
+        self.accumulator = {'file_commit_gram_scenarios': [], 'merge_scenarios': [], 'cherry_pick_scenarios': []}
         self.state = {}
         self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
         self.visited_commits = set()
         self.programming_language = programming_language
 
-    def update_accumulator_with(self, file_state: dict, file_to_remove: str, branch: str):
+    def update_accumulator_with_file_commit_gram_scenario(self, file_state: dict, file_to_remove: str, branch: str):
         if file_state['times_seen_consecutively'] >= self.sliding_window_size:
-            self.accumulator.append(
+            self.accumulator['file_commit_gram_scenarios'].append(
                 {'file': file_to_remove, 'branch': branch, 'first_commit': file_state['first_commit'],
                  'last_commit': file_state['last_commit'],
                  'times_seen_consecutively': file_state['times_seen_consecutively']})
 
-    def compute_file_commit_grams(self):
+    def scrape(self):
         valid_change_types = ['A', 'M', 'MM']
         for branch in tqdm(self.branches, desc=f'Parsing branches ...'):
             commit = [c for c in self.repository.iter_commits(rev=branch, n=1)][0]
@@ -63,6 +63,7 @@ class RepositoryDataScraper:
             while not frontier.empty():
                 commit = frontier.get()
                 is_merge_commit = len(commit.parents) > 1
+                merge_commit_sample = {}
 
                 # Ensure we early stop if we run into a visited commit
                 # This happens whenever the branch from which we started joins the branch from which it originated
@@ -90,11 +91,25 @@ class RepositoryDataScraper:
                 # Only increment if it is a new commit that we have not yet seen
                 if is_merge_commit:
                     self.n_merge_commits += 1
+                    merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
+                                                         'parents': [parent.hexsha for parent in commit.parents]}
 
                 # Cherry-pick commits
-                cherry_pick_pattern = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
-                if cherry_pick_pattern.search(commit.message):
+                # re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
+                # Captures exactly the message appened to the cherry pick commit message by using the
+                weak_cherry_pick_indicator = re.compile(r'(cherry pick[ed]*|cherry-pick[ed]*|cherrypick[ed]*)')
+                if weak_cherry_pick_indicator.search(commit.message):
                     self.n_cherry_pick_commits += 1
+
+                # -x option in git cherry-pick. Sadly this is no longer the default.
+                cherry_pick_pattern = re.compile(r'(?<=cherry picked from commit )[a-z0-9]{40}')
+                potential_cherry_pick_match = cherry_pick_pattern.search(commit.message)
+                if potential_cherry_pick_match:
+                    self.accumulator['cherry_pick_scenarios'].append({
+                        'cherry_pick_commit': commit.hexsha,
+                        'cherry_commit': potential_cherry_pick_match[0],
+                        'parents': [parent.hexsha for parent in commit.parents]
+                    })
 
                 changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
                 changes_in_commit = changes_in_commit[1:]  # remove commit hash and message
@@ -132,6 +147,7 @@ class RepositoryDataScraper:
 
                         if is_merge_commit and change_type == 'MM':
                             self.n_merge_commits_with_resolved_conflicts += 1
+                            merge_commit_sample['had_conflicts'] = True
 
                         # Update the file state for every branch with this commit
                         # Otherwise ignore this commit (dont update state)
@@ -162,9 +178,13 @@ class RepositoryDataScraper:
                             if file in affected_files:
                                 new_state[file] = self.state[branch][file]
                             else:
-                                self.update_accumulator_with(self.state[branch][file], file, branch)
+                                self.update_accumulator_with_file_commit_gram_scenario(self.state[branch][file], file,
+                                                                                       branch)
 
                         self.state[branch] = new_state
+
+                if is_merge_commit:
+                    self.accumulator['merge_scenarios'].append(merge_commit_sample)
 
             # After we are done with all commits, the state might contain valid commits if we have a
             # file commit-gram lasting until the last commit (ie we have just seen the file and then terminate)
@@ -172,7 +192,8 @@ class RepositoryDataScraper:
             for tracked_branch in self.state:
                 for file in self.state[tracked_branch]:
                     if self.state[tracked_branch][file]['times_seen_consecutively'] >= self.sliding_window_size:
-                        self.update_accumulator_with(self.state[tracked_branch][file], file, tracked_branch)
+                        self.update_accumulator_with_file_commit_gram_scenario(self.state[tracked_branch][file], file,
+                                                                               tracked_branch)
 
             # Clean up
             self.state = {}

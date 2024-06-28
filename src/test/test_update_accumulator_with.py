@@ -36,13 +36,15 @@ class UpdateAccumulatorWithTestCase(unittest.TestCase):
             }
         }
 
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 0)
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 0)
 
-        self.repository_data_scraper.update_accumulator_with(self.repository_data_scraper.state[branch][file],
-                                                             file, branch)
+        self.repository_data_scraper.update_accumulator_with_file_commit_gram_scenario(
+            self.repository_data_scraper.state[branch][file],
+            file, branch)
 
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 1)
-        self.assertEqual(self.repository_data_scraper.accumulator[0], self.repository_data_scraper.state[branch][file])
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 1)
+        self.assertEqual(self.repository_data_scraper.accumulator['file_commit_gram_scenarios'][0],
+                         self.repository_data_scraper.state[branch][file])
 
     def test_should_add_file_with_counter_equal_to_sliding_window_size_to_accumulator(self):
         branch = 'test_branch'
@@ -59,13 +61,15 @@ class UpdateAccumulatorWithTestCase(unittest.TestCase):
             }
         }
 
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 0)
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 0)
 
-        self.repository_data_scraper.update_accumulator_with(self.repository_data_scraper.state[branch][file],
-                                                             file, branch)
+        self.repository_data_scraper.update_accumulator_with_file_commit_gram_scenario(
+            self.repository_data_scraper.state[branch][file],
+            file, branch)
 
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 1)
-        self.assertEqual(self.repository_data_scraper.accumulator[0], self.repository_data_scraper.state[branch][file])
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 1)
+        self.assertEqual(self.repository_data_scraper.accumulator['file_commit_gram_scenarios'][0],
+                         self.repository_data_scraper.state[branch][file])
 
     def test_should_not_add_file_with_counter_less_than_sliding_window_size_to_accumulator(self):
         branch = 'test_branch'
@@ -82,12 +86,13 @@ class UpdateAccumulatorWithTestCase(unittest.TestCase):
             }
         }
 
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 0)
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 0)
 
-        self.repository_data_scraper.update_accumulator_with(self.repository_data_scraper.state[branch][file],
-                                                             file, branch)
+        self.repository_data_scraper.update_accumulator_with_file_commit_gram_scenario(
+            self.repository_data_scraper.state[branch][file],
+            file, branch)
 
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 0)
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 0)
 
     def test_should_not_add_file_with_negative_counter_to_accumulator(self):
         branch = 'test_branch'
@@ -105,13 +110,14 @@ class UpdateAccumulatorWithTestCase(unittest.TestCase):
         }
 
         # Should be empty before test
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 0)
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 0)
 
-        self.repository_data_scraper.update_accumulator_with(self.repository_data_scraper.state[branch][file],
-                                                             file, branch)
+        self.repository_data_scraper.update_accumulator_with_file_commit_gram_scenario(
+            self.repository_data_scraper.state[branch][file],
+            file, branch)
 
         # Should contain the specified item after test
-        self.assertTrue(len(self.repository_data_scraper.accumulator) == 0)
+        self.assertTrue(len(self.repository_data_scraper.accumulator['file_commit_gram_scenarios']) == 0)
 
 
 if __name__ == '__main__':
