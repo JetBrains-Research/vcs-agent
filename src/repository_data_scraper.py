@@ -26,6 +26,8 @@ class RepositoryDataScraper:
 
     programming_language = None
 
+    _cherry_pick_pattern = None
+
     def __init__(self, repository: Repo, programming_language: ProgrammingLanguage, sliding_window_size: int = 3):
         if repository is None:
             raise ValueError("Please provide a repository instance to scrape from.")
@@ -40,6 +42,9 @@ class RepositoryDataScraper:
 
         self.visited_commits = set()
         self.seen_commit_messages = dict()
+
+        # Based on the string appended to the commit message by the -x option in git cherry-pick
+        self._cherry_pick_pattern = re.compile(r'(?<=cherry picked from commit )[a-z0-9]{40}')
 
     def update_accumulator_with_file_commit_gram_scenario(self, file_state: dict, file_to_remove: str, branch: str):
         if file_state['times_seen_consecutively'] >= self.sliding_window_size:
@@ -72,8 +77,8 @@ class RepositoryDataScraper:
                 # meaning we visited the this branch origin's commit thus all commits thereafter
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
-                    self.__update_commit_message_tracker(commit)
-                    frontier = self.__update_frontier_with(commit, frontier, is_merge_commit)
+                    self._update_commit_message_tracker(commit)
+                    frontier = self._update_frontier_with(commit, frontier, is_merge_commit)
                 elif keepalive > 0:
                     # If we hit a commit which we have already seen, it means we are hitting another branch
                     # To catch overlaps, we continue for keepalive commits
@@ -86,15 +91,7 @@ class RepositoryDataScraper:
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
                                            'parents': [parent.hexsha for parent in commit.parents]}
 
-                # Based on the string appended to the commit message by the -x option in git cherry-pick
-                cherry_pick_pattern = re.compile(r'(?<=cherry picked from commit )[a-z0-9]{40}')
-                potential_cherry_pick_match = cherry_pick_pattern.search(commit.message)
-                if potential_cherry_pick_match:
-                    self.accumulator['cherry_pick_scenarios'].append({
-                        'cherry_pick_commit': commit.hexsha,
-                        'cherry_commit': potential_cherry_pick_match[0],
-                        'parents': [parent.hexsha for parent in commit.parents]
-                    })
+                self._process_cherry_pick_scenario(commit)
 
                 changes_in_commit = self.repository.git.show(commit, name_status=True, format='oneline').split('\n')
                 changes_in_commit = changes_in_commit[1:]  # remove commit hash and message
@@ -186,7 +183,31 @@ class RepositoryDataScraper:
         self.accumulator['cherry_pick_scenarios'] += self.mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
 
-    def __update_frontier_with(self, commit, frontier, is_merge_commit):
+    def _process_cherry_pick_scenario(self, commit: Commit):
+        """
+        Checks the commit message for a cherry-pick scenario and, if present, adds it to the class's accumulator.
+
+        Args:
+            commit (Commit): A commit object to be checked for a cherry-pick scenario.
+
+        Returns:
+            This function does not return a value. Instead, it updates the class's accumulator with the following
+             data structure:
+            {
+                'cherry_pick_commit': <commit hash (str)>,
+                'cherry_commit': <matched cherry-pick commit (str)>,
+                'parents': <list of parent hashes (list[str])>
+            }
+        """
+        potential_cherry_pick_match = self._cherry_pick_pattern.search(commit.message)
+        if potential_cherry_pick_match:
+            self.accumulator['cherry_pick_scenarios'].append({
+                'cherry_pick_commit': commit.hexsha,
+                'cherry_commit': potential_cherry_pick_match[0],
+                'parents': [parent.hexsha for parent in commit.parents]
+            })
+
+    def _update_frontier_with(self, commit, frontier, is_merge_commit):
         if is_merge_commit:
             for parent in commit.parents:
                 # Ensure we continue on any path that is left available
@@ -198,7 +219,7 @@ class RepositoryDataScraper:
 
         return frontier
 
-    def __update_commit_message_tracker(self, commit):
+    def _update_commit_message_tracker(self, commit):
         if commit.message in self.seen_commit_messages:
             self.seen_commit_messages[commit.message].append(commit)
         else:
