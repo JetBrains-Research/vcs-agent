@@ -47,7 +47,7 @@ class RepositoryDataScraper:
                  'last_commit': file_state['last_commit'],
                  'times_seen_consecutively': file_state['times_seen_consecutively']})
 
-    def compute_file_commit_grams(self):
+    def scrape(self):
         valid_change_types = ['A', 'M', 'MM']
         for branch in tqdm(self.branches, desc=f'Parsing branches ...'):
             commit = [c for c in self.repository.iter_commits(rev=branch, n=1)][0]
