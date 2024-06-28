@@ -40,7 +40,7 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
              'times_seen_consecutively': 4}]
 
         self.repository_data_scraper.compute_file_commit_grams()
-        candidate_file_commit_grams = self.repository_data_scraper.accumulator
+        candidate_file_commit_grams = self.repository_data_scraper.accumulator['file_commit_gram_scenarios']
 
         self.assertEqual(len(candidate_file_commit_grams), len(target_file_commit_grams))
 
@@ -60,7 +60,7 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
                                                              sliding_window_size=2)
 
         self.repository_data_scraper.compute_file_commit_grams()
-        candidate_file_commit_grams = self.repository_data_scraper.accumulator
+        candidate_file_commit_grams = self.repository_data_scraper.accumulator['file_commit_gram_scenarios']
 
         for candidate_file_commit_gram in candidate_file_commit_grams:
             self.assertTrue(
@@ -72,7 +72,7 @@ class ComputeFileCommitGramsTestCase(unittest.TestCase):
                                                              sliding_window_size=2)
 
         self.repository_data_scraper.compute_file_commit_grams()
-        candidate_file_commit_grams = self.repository_data_scraper.accumulator
+        candidate_file_commit_grams = self.repository_data_scraper.accumulator['file_commit_gram_scenarios']
 
         for candidate_file_commit_gram in candidate_file_commit_grams:
             self.assertTrue(
