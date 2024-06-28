@@ -225,13 +225,13 @@ class RepositoryDataScraper:
                 comparison_targets = commits[i + 1:]  # Only process triangular sub-matrix without diagonal
                 for comparison_target in comparison_targets:
                     if self.do_patch_ids_match(pivot_commit, comparison_target):
-                        if pivot_commit.authored_datetime < comparison_target.authored_datetime:
+                        if pivot_commit.committed_datetime < comparison_target.committed_datetime:
                             additional_cherry_pick_scenarios.append({
                                 'cherry_pick_commit': comparison_target.hexsha,
                                 'cherry_commit': pivot_commit.hexsha,
                                 'parents': [parent.hexsha for parent in comparison_target.parents]
                             })
-                        elif pivot_commit.authored_datetime > comparison_target.authored_datetime:
+                        elif pivot_commit.committed_datetime > comparison_target.committed_datetime:
                             additional_cherry_pick_scenarios.append({
                                 'cherry_pick_commit': pivot_commit.hexsha,
                                 'cherry_commit': comparison_target.hexsha,
