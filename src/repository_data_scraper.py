@@ -96,18 +96,7 @@ class RepositoryDataScraper:
 
                 changes_in_commit = self._get_changes_in_commit(commit)
 
-                # If any change in this commit is a valid change, we want to update the state
-                # This is needed for the cleanup phase that removes stale files. Implicitly ensures that
-                # len(changes_in_commit) > 0, because in this case should_process_commit remains False
-                should_process_commit = False
-                for change in changes_in_commit:
-                    # Change types such as rename yield a list of length 3 here, cannot simply unpack in every case
-                    change_type = change.split('\t')[0]
-                    should_process_commit = change_type in valid_change_types
-                    if should_process_commit:
-                        break
-
-                if should_process_commit:
+                if self._should_process_commit(changes_in_commit, valid_change_types):
                     # Commit has changes
                     affected_files = []
 
@@ -181,6 +170,29 @@ class RepositoryDataScraper:
         start = time.time()
         self.accumulator['cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
+
+    def _should_process_commit(self, changes_in_commit, valid_change_types) -> bool:
+        """
+        Processes changes in commit to determine if any change is of a valid change type.
+
+        Implicitly ensures that len(changes_in_commit) > 0, because in this case should_process_commit remains False
+
+        Args:
+            changes_in_commit: A list of changes in the commit.
+            valid_change_types: A list of valid change types.
+
+        Returns:
+            bool: True if any change in the commit is a valid change type, False otherwise.
+        """
+        #
+        should_process_commit = False
+        for change in changes_in_commit:
+            # Change types such as rename yield a list of length 3 here, cannot simply unpack in every case
+            change_type = change.split('\t')[0]
+            should_process_commit = change_type in valid_change_types
+            if should_process_commit:
+                return should_process_commit
+        return should_process_commit
 
     def _get_changes_in_commit(self, commit: Commit) -> List:
         """
