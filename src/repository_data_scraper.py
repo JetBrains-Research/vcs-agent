@@ -7,6 +7,7 @@ import hashlib
 import time
 from typing import List, Dict
 
+
 class RepositoryDataScraper:
     repository = None
     sliding_window_size = 3
@@ -97,7 +98,7 @@ class RepositoryDataScraper:
                 # meaning we visited this branch origin's commit thus all commits thereafter
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
-                    self._update_commit_message_tracker(commit)
+
                     frontier = self._update_frontier_with(commit, frontier, is_merge_commit)
                 elif keepalive > 0:
                     # If we hit a commit which we have already seen, it means we are hitting another branch
@@ -114,6 +115,13 @@ class RepositoryDataScraper:
                 self._process_cherry_pick_scenario(commit)
 
                 changes_in_commit = self._get_changes_in_commit(commit)
+
+                # At this point the commit metadata such as the message are trimmed
+                # Each line represents one file that was changed. This means each line contains the change type and
+                # relative filepath. Thus, it is safe to simply search list string for file endings.
+                if any([(self.programming_language.value in changes_in_commit)
+                        for changes_in_commit in changes_in_commit]):
+                    self._update_commit_message_tracker(commit)
 
                 if self._should_process_commit(changes_in_commit, valid_change_types):
                     affected_files = []
@@ -150,6 +158,43 @@ class RepositoryDataScraper:
         self.accumulator[
             'cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
+
+    def _should_process_commit(self, changes_in_commit: List[str], valid_change_types: List[str]):
+        """
+        Args:
+            changes_in_commit (List[str]): Changes in the commit.
+            valid_change_types (List[str]): Each item represents a type of change that should be processed.
+
+        Returns:
+            A boolean value indicating whether the commit should be processed or not.
+            True if any of the changes in the commit match any of the valid change types and the programming language
+            of the commit matches the programming language for which we are scraping data, otherwise False.
+        """
+        return self._is_any_change_type_valid(changes_in_commit, valid_change_types) and \
+            any([(self.programming_language.value in changes_in_commit) for changes_in_commit in changes_in_commit])
+
+    def _is_any_change_type_valid(self, changes_in_commit, valid_change_types) -> bool:
+        """
+        Processes changes in commit to determine if any change is of a valid change type.
+
+        Implicitly ensures that len(changes_in_commit) > 0, because in this case is_any_change_type_valid remains False
+
+        Args:
+            changes_in_commit: A list of changes in the commit.
+            valid_change_types: A list of valid change types.
+
+        Returns:
+            bool: True if any change in the commit is a valid change type, False otherwise.
+        """
+        #
+        is_any_change_type_valid = False
+        for change in changes_in_commit:
+            # Change types such as rename yield a list of length 3 here, cannot simply unpack in every case
+            change_type = change.split('\t')[0]
+            is_any_change_type_valid = change_type in valid_change_types
+            if is_any_change_type_valid:
+                return is_any_change_type_valid
+        return is_any_change_type_valid
 
     def _handle_last_commit_file_commit_gram_edge_case(self):
         """
@@ -218,29 +263,6 @@ class RepositoryDataScraper:
             # detected it Need to set up the state dict
             self.state[branch][file] = {'first_commit': commit.hexsha, 'last_commit': commit.hexsha,
                                         'times_seen_consecutively': 1}
-
-    def _should_process_commit(self, changes_in_commit, valid_change_types) -> bool:
-        """
-        Processes changes in commit to determine if any change is of a valid change type.
-
-        Implicitly ensures that len(changes_in_commit) > 0, because in this case should_process_commit remains False
-
-        Args:
-            changes_in_commit: A list of changes in the commit.
-            valid_change_types: A list of valid change types.
-
-        Returns:
-            bool: True if any change in the commit is a valid change type, False otherwise.
-        """
-        #
-        should_process_commit = False
-        for change in changes_in_commit:
-            # Change types such as rename yield a list of length 3 here, cannot simply unpack in every case
-            change_type = change.split('\t')[0]
-            should_process_commit = change_type in valid_change_types
-            if should_process_commit:
-                return should_process_commit
-        return should_process_commit
 
     def _get_changes_in_commit(self, commit: Commit) -> List:
         """
