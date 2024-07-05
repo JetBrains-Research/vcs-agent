@@ -1,4 +1,4 @@
-from git import Repo, Commit, NULL_TREE
+from git import Repo, Commit, NULL_TREE, BadObject
 import re
 from queue import Queue
 from tqdm import tqdm
@@ -164,10 +164,10 @@ class RepositoryDataScraper:
             # Clean up
             self.state = {}
 
-        start = time.time()
+        start = time()
         self.accumulator[
             'cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
-        print(f'Extra time incurred: {time.time() - start}s')
+        print(f'Extra time incurred: {round(time() - start, 4)}s')
 
     def _should_process_commit(self, changes_in_commit: List[str], valid_change_types: List[str]):
         """
@@ -367,6 +367,8 @@ class RepositoryDataScraper:
             return []
 
         additional_cherry_pick_scenarios = []
+        start_time = time()
+        timeout = 180
 
         for duplicate_message in tqdm(duplicate_messages,
                                       desc='Mining duplicate commit messages for additional cherry-pick scenarios'):
@@ -387,9 +389,12 @@ class RepositoryDataScraper:
                         # commit. This way other_cherry_pick_commit will not be matched with original_commit AND
                         # previous_cherry_pick_commit.
                         break
-            # Timeout mechanism to avoid collecting excessive amounts of scenarios from a single repository
+            # Timeout mechanisms to avoid collecting excessive amounts of scenarios from a single repository
             if len(additional_cherry_pick_scenarios) >= 50:
                 print(f'Early stopping mining for additional cherry-pick scenarios, because >=50 were already found.\n')
+                break
+            if time() > start_time + timeout:
+                print(f'Early stopping mining for additional cherry-pick scenarios timeout of 3min was hit.\n')
                 break
         print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
         return additional_cherry_pick_scenarios
