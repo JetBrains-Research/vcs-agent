@@ -4,8 +4,9 @@ from queue import Queue
 from tqdm import tqdm
 from src.programming_language import ProgrammingLanguage
 import hashlib
-import time
+from time import time
 from typing import List, Dict
+from warnings import warn
 
 
 class RepositoryDataScraper:
@@ -76,8 +77,17 @@ class RepositoryDataScraper:
         self.sliding_window_size commits, to mine file-commit grams that overlap outside of a branch.
         """
         valid_change_types = ['A', 'M', 'MM']
-        for branch in tqdm(self.branches, desc=f'Parsing branches ...'):
-            commit = self.repository.commit(branch)
+        for branch in tqdm(self.branches, desc=f'Parsing branches {self.repository.remotes.origin.url}'):
+            try:
+                commit = self.repository.commit(branch)
+            except Exception as e:
+                if isinstance(e, BadObject):
+                    warning_content = (f'\nCould not get branch HEAD for branch {branch}. Branch probably contains "@". '
+                                       f'GitPython cant handle that.\n\nSkipping branch ...')
+                    warn(warning_content, category=RuntimeWarning)
+                    continue
+                else:
+                    raise e
 
             frontier = Queue(maxsize=0)
             frontier.put(commit)
