@@ -125,24 +125,8 @@ class RepositoryDataScraper:
                         if is_merge_commit and change_type == 'MM':
                             merge_commit_sample['had_conflicts'] = True
 
-                        # Update the file state for every branch with this commit
-                        # Otherwise ignore this commit (dont update state)
                         self._maintain_state_for_change_in_commit(branch, commit, file)
-
-                        # We updated (Add, Update) one file of the commit for all affected branches at this point
-                    # (Add, Update) ALL files of the commit for all affected branches
-                    # Now we only need to remove stale file states (files that were not found in the commit)
-                    # Only do this for branches affected by the commit
-                    if self.state:
-                        new_state = {}
-                        for file in self.state[branch]:
-                            if file in affected_files:
-                                new_state[file] = self.state[branch][file]
-                            else:
-                                self.update_accumulator_with_file_commit_gram_scenario(self.state[branch][file], file,
-                                                                                       branch)
-
-                        self.state[branch] = new_state
+                    self._remove_stale_file_states(affected_files, branch)
 
                 if is_merge_commit:
                     self.accumulator['merge_scenarios'].append(merge_commit_sample)
@@ -162,6 +146,31 @@ class RepositoryDataScraper:
         start = time.time()
         self.accumulator['cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
+
+    def _remove_stale_file_states(self, affected_files: List[str], branch: str):
+        """
+        Removes stale file states from the state of the given branch.
+
+        Some file-commit grams might have stopped in this commit. If this is the case, we no longer need to maintain
+        a state for them. If their length was >= self.sliding_window_size we should successfully mined a scenario
+        and must update the accumulator with it.
+
+        Args:
+            affected_files (List[str]): List of files affected by the commit.
+            branch (str): Branch affected by the commit.
+
+        """
+        # Now we only need to remove stale file states (files that were not found in the commit)
+        # Only do this for branches affected by the commit
+        if self.state:
+            new_state = {}
+            for file in self.state[branch]:
+                if file in affected_files:
+                    new_state[file] = self.state[branch][file]
+                else:
+                    self.update_accumulator_with_file_commit_gram_scenario(self.state[branch][file], file,
+                                                                           branch)
+            self.state[branch] = new_state
 
     def _maintain_state_for_change_in_commit(self, branch: str, commit: Commit, file: str):
         """
