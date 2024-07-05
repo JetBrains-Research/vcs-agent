@@ -346,6 +346,10 @@ class RepositoryDataScraper:
         If two commits commit messages are identical and so are their patch ids, they are additional cherry-pick scenarios.
         Note that this function early stops after collecting 50 additional scenarios, to avoid excessive compute
         incurred in very large repositories.
+
+        Edge cases:
+            - A commit can be present as a cherry for multiple commits in different scenarios, iff it has been picked
+                multiple times.
         """
         duplicate_messages = [{k: v} for k, v in self.seen_commit_messages.items() if len(v) > 1]
 
@@ -354,7 +358,6 @@ class RepositoryDataScraper:
 
         additional_cherry_pick_scenarios = []
 
-        # We could have n > 1 commits of a message, pairwise computation is costly
         for duplicate_message in tqdm(duplicate_messages,
                                       desc='Mining duplicate commit messages for additional cherry-pick scenarios'):
             commits = next(iter(duplicate_message.values()))
@@ -364,6 +367,16 @@ class RepositoryDataScraper:
                     if self._do_patch_ids_match(pivot_commit, comparison_target):
                         self._append_cherry_pick_scenario(additional_cherry_pick_scenarios, comparison_target,
                                                           pivot_commit)
+
+                        # If we found a cherry for this commit, it is a cherry-pick commit.
+                        # The other comparison_targets could only lead to duplication iff a cherry has been picked
+                        # multiple times. Assume original_commit has been picked to previous_cherry_pick_commit. Then,
+                        # original_commit was also picked to other_cherry_pick_commit. All three commits introduce the
+                        # same patch and have the same commit message. This means this will lead to duplicate scenarios.
+                        # To avoid this, we stop processing comparison_targets, once we have found a cherry for the
+                        # commit. This way other_cherry_pick_commit will not be matched with original_commit AND
+                        # previous_cherry_pick_commit.
+                        break
             # Timeout mechanism to avoid collecting excessive amounts of scenarios from a single repository
             if len(additional_cherry_pick_scenarios) >= 50:
                 print(f'Early stopping mining for additional cherry-pick scenarios, because >=50 were already found.\n')
