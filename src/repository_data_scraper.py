@@ -84,7 +84,7 @@ class RepositoryDataScraper:
                 # Ensure we early stop if we run into a visited commit
                 # This happens whenever this branch (the one currently being processed) joins another branch at
                 # its branch origin, iff we have already processed  a branch running past this branch's origin,
-                # meaning we visited the this branch origin's commit thus all commits thereafter
+                # meaning we visited this branch origin's commit thus all commits thereafter
                 if commit.hexsha not in self.visited_commits:
                     self.visited_commits.add(commit.hexsha)
                     self._update_commit_message_tracker(commit)
@@ -106,14 +106,12 @@ class RepositoryDataScraper:
                 changes_in_commit = self._get_changes_in_commit(commit)
 
                 if self._should_process_commit(changes_in_commit, valid_change_types):
-                    # Commit has changes
                     affected_files = []
 
-                    # Parse changes
-                    # Do we need to update the state of this particular file?
                     for change_in_commit in changes_in_commit:
                         changes_to_unpack = change_in_commit.split('\t')
-                        # Some changes in the commit might not be of a supported change type
+
+                        # Only process valid change_types
                         if changes_to_unpack[0] not in valid_change_types:
                             continue
 
