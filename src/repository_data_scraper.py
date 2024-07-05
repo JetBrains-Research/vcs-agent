@@ -24,9 +24,7 @@ class RepositoryDataScraper:
 
     visited_commits = None
     seen_commit_messages = None
-
     programming_language = None
-
     _cherry_pick_pattern = None
 
     def __init__(self, repository: Repo, programming_language: ProgrammingLanguage, sliding_window_size: int = 3):
@@ -64,6 +62,18 @@ class RepositoryDataScraper:
                  'times_seen_consecutively': file_state['times_seen_consecutively']})
 
     def scrape(self):
+        """
+        Parses the repository to collect merge, cherry_pick and file_commit_gram scenarios.
+
+        Iterates over all branches of a repository processing commits of the supported changes types:
+            - M
+            - MM
+            - A
+
+        The scenarios mined, are stored in self.accumulator. To optimize compute, we dont process commits that
+        were already seen again. The exception is that we process past a branches' origin commit for
+        self.sliding_window_size commits, to mine file-commit grams that overlap outside of a branch.
+        """
         valid_change_types = ['A', 'M', 'MM']
         for branch in tqdm(self.branches, desc=f'Parsing branches ...'):
             commit = self.repository.commit(branch)
