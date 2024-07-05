@@ -296,6 +296,11 @@ class RepositoryDataScraper:
                                 'cherry_commit': comparison_target.hexsha,
                                 'parents': [parent.hexsha for parent in pivot_commit.parents]
                             })
+            # Timeout mechanism to avoid collecting excessive amounts of scenarios from a single repository
+            if len(additional_cherry_pick_scenarios) >= 50:
+                print(f'Early stopping mining for additional cherry-pick scenarios, because 50 were already found.'
+                      f'Skipping {additional_cherry_pick_scenarios} scenario remaining candidates would have been')
+                break
         print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
         return additional_cherry_pick_scenarios
 
