@@ -48,6 +48,15 @@ class RepositoryDataScraper:
         self._cherry_pick_pattern = re.compile(r'(?<=cherry picked from commit )[a-z0-9]{40}')
 
     def update_accumulator_with_file_commit_gram_scenario(self, file_state: dict, file_to_remove: str, branch: str):
+        """
+        Updates the accumulator with the state at the given branch and file_to_remove with a file-commit gram scenario
+        if the scenario at branch and file_to_remove is >= self.sliding_window_size long.
+
+        Args:
+            file_state: (dict): A dictionary containing the state of the file.
+            file_to_remove (str): The name of the file to be removed.
+            branch (str): The name of the branch where the file exists.
+        """
         if file_state['times_seen_consecutively'] >= self.sliding_window_size:
             self.accumulator['file_commit_gram_scenarios'].append(
                 {'file': file_to_remove, 'branch': branch, 'first_commit': file_state['first_commit'],
