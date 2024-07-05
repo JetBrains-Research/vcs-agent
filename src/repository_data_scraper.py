@@ -353,13 +353,31 @@ class RepositoryDataScraper:
         return additional_cherry_pick_scenarios
 
     def _do_patch_ids_match(self, commit1: Commit, commit2: Commit) -> bool:
-        # Generate the diff for the commit
-        sha1 = self._generate_hash_from_patch(commit1)
-        sha2 = self._generate_hash_from_patch(commit2)
+        """
+        Checks if two commits apply the same changes, ie are identical.
 
-        return sha1 == sha2
+        Args:
+            commit1: The first commit object to compare.
+            commit2: The second commit object to compare.
+
+        Returns:
+            bool: True if the patch ids of the two commits match, False otherwise.
+        """
+        patch_sha1 = self._generate_hash_from_patch(commit1)
+        patch_sha2 = self._generate_hash_from_patch(commit2)
+
+        return patch_sha1 == patch_sha2
 
     def _generate_hash_from_patch(self, commit: Commit) -> str:
+        """
+        Generates a hash from a commit's patch.
+
+        Args:
+            commit (Commit): The commit object for which to generate the hash.
+
+        Returns:
+            str: The generated hash as a hexadecimal string.
+        """
         diff = commit.diff(other=commit.parents[0] if commit.parents else NULL_TREE, create_patch=True)
         try:
             diff_content = ''.join(d.diff.decode('utf-8') for d in diff)
