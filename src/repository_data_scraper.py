@@ -131,21 +131,29 @@ class RepositoryDataScraper:
                 if is_merge_commit:
                     self.accumulator['merge_scenarios'].append(merge_commit_sample)
 
-            # After we are done with all commits, the state might contain valid commits if we have a
-            # file commit-gram lasting until the last commit (ie we have just seen the file and then terminate)
-            # To capture this edge case we need to iterate over the state one more time.
-            for tracked_branch in self.state:
-                for file in self.state[tracked_branch]:
-                    if self.state[tracked_branch][file]['times_seen_consecutively'] >= self.sliding_window_size:
-                        self.update_accumulator_with_file_commit_gram_scenario(self.state[tracked_branch][file], file,
-                                                                               tracked_branch)
+            self._handle_last_commit_file_commit_gram_edge_case()
 
             # Clean up
             self.state = {}
 
         start = time.time()
-        self.accumulator['cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
+        self.accumulator[
+            'cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
+
+    def _handle_last_commit_file_commit_gram_edge_case(self):
+        """
+        Handle the edge case where file-commit grams are still active, or continuing in the last commit. In this case we
+        need to also update the accumulator with these scenarios to successfully mine them.
+
+        After we are done with all commits, the state might contain valid file-commit grams
+        lasting until and including the last commit (ie we have just seen the file and then terminate).
+        To capture this edge case we need to iterate over the state one more time.
+        """
+        for tracked_branch in self.state:
+            for file in self.state[tracked_branch]:
+                self.update_accumulator_with_file_commit_gram_scenario(self.state[tracked_branch][file], file,
+                                                                       tracked_branch)
 
     def _remove_stale_file_states(self, affected_files: List[str], branch: str):
         """
