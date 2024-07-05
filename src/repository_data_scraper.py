@@ -318,6 +318,13 @@ class RepositoryDataScraper:
             self.seen_commit_messages.update({commit.message: [commit]})
 
     def _mine_commits_with_duplicate_messages_for_cherry_pick_scenarios(self):
+        """
+        Mines commits with duplicate messages for cherry pick scenarios.
+
+        If two commits commit messages are identical and so are their patch ids, they are additional cherry-pick scenarios.
+        Note that this function early stops after collecting 50 additional scenarios, to avoid excessive compute
+        incurred in very large repositories.
+        """
         duplicate_messages = [{k: v} for k, v in self.seen_commit_messages.items() if len(v) > 1]
 
         if len(duplicate_messages) == 0:
