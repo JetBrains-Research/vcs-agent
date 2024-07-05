@@ -5,7 +5,7 @@ from tqdm import tqdm
 from src.programming_language import ProgrammingLanguage
 import hashlib
 import time
-from typing import List
+from typing import List, Dict
 
 class RepositoryDataScraper:
     repository = None
@@ -332,18 +332,8 @@ class RepositoryDataScraper:
                 comparison_targets = commits[i + 1:]  # Only process triangular sub-matrix without diagonal
                 for comparison_target in comparison_targets:
                     if self._do_patch_ids_match(pivot_commit, comparison_target):
-                        if pivot_commit.committed_datetime < comparison_target.committed_datetime:
-                            additional_cherry_pick_scenarios.append({
-                                'cherry_pick_commit': comparison_target.hexsha,
-                                'cherry_commit': pivot_commit.hexsha,
-                                'parents': [parent.hexsha for parent in comparison_target.parents]
-                            })
-                        elif pivot_commit.committed_datetime > comparison_target.committed_datetime:
-                            additional_cherry_pick_scenarios.append({
-                                'cherry_pick_commit': pivot_commit.hexsha,
-                                'cherry_commit': comparison_target.hexsha,
-                                'parents': [parent.hexsha for parent in pivot_commit.parents]
-                            })
+                        self._append_cherry_pick_scenario(additional_cherry_pick_scenarios, comparison_target,
+                                                          pivot_commit)
             # Timeout mechanism to avoid collecting excessive amounts of scenarios from a single repository
             if len(additional_cherry_pick_scenarios) >= 50:
                 print(f'Early stopping mining for additional cherry-pick scenarios, because 50 were already found.'
@@ -351,6 +341,33 @@ class RepositoryDataScraper:
                 break
         print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
         return additional_cherry_pick_scenarios
+
+    def _append_cherry_pick_scenario(self, additional_cherry_pick_scenarios: List[Dict], comparison_target: Commit,
+                                     pivot_commit: Commit):
+        """
+        Appends detected identical commits as cherry_pick scenarios to the additional_cherry_pick_scenarios
+        accumulator. The chronologically older commit is set as the 'cherry_commit' and the younger commit as
+        'cherry_pick_commit'.
+
+        Args:
+            additional_cherry_pick_scenarios (List[Dict]): A list of dictionaries that represent additional
+                cherry pick scenarios.
+            comparison_target (Commit): The commit that is being compared against.
+            pivot_commit (Commit): The commit that is used as the pivot for comparison.
+
+        """
+        if pivot_commit.committed_datetime < comparison_target.committed_datetime:
+            additional_cherry_pick_scenarios.append({
+                'cherry_pick_commit': comparison_target.hexsha,
+                'cherry_commit': pivot_commit.hexsha,
+                'parents': [parent.hexsha for parent in comparison_target.parents]
+            })
+        elif pivot_commit.committed_datetime > comparison_target.committed_datetime:
+            additional_cherry_pick_scenarios.append({
+                'cherry_pick_commit': pivot_commit.hexsha,
+                'cherry_commit': comparison_target.hexsha,
+                'parents': [parent.hexsha for parent in pivot_commit.parents]
+            })
 
     def _do_patch_ids_match(self, commit1: Commit, commit2: Commit) -> bool:
         """
