@@ -120,22 +120,7 @@ class RepositoryDataScraper:
 
                         # Update the file state for every branch with this commit
                         # Otherwise ignore this commit (dont update state)
-                        # We should maintain a state for this branch, ensure that we are
-                        if branch not in self.state:
-                            self.state[branch] = {}
-
-                        if file in self.state[branch]:
-                            # We are maintaining a state for this file on this branch
-                            self.state[branch][file]['times_seen_consecutively'] = self.state[branch][file][
-                                                                                       'times_seen_consecutively'] + 1
-
-                            if self.state[branch][file]['times_seen_consecutively'] >= self.sliding_window_size:
-                                self.state[branch][file]['last_commit'] = commit.hexsha
-                        else:
-                            # We are not currently maintaining a state for this file in this branch, but have
-                            # detected it Need to set up the state dict
-                            self.state[branch][file] = {'first_commit': commit.hexsha, 'last_commit': commit.hexsha,
-                                                        'times_seen_consecutively': 1}
+                        self._maintain_state_for_change_in_commit(branch, commit, file)
 
                         # We updated (Add, Update) one file of the commit for all affected branches at this point
                     # (Add, Update) ALL files of the commit for all affected branches
@@ -170,6 +155,35 @@ class RepositoryDataScraper:
         start = time.time()
         self.accumulator['cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {time.time() - start}s')
+
+    def _maintain_state_for_change_in_commit(self, branch: str, commit: Commit, file: str):
+        """
+        Updates the state. Does not write any results to the accumulator.
+
+        Initializes the state for a branch with a empty dict if we are not currently maintaining
+        a state for this branch. Then keeps track of file-commit grams >= self.sliding_window_size
+
+        Args:
+            branch (str): The name of the branch where the commit occurred.
+            commit (Commit): The Commit object representing the commit being made.
+            file (str): The name of the file that was changed in the commit.
+
+        """
+        if branch not in self.state:
+            self.state[branch] = {}
+
+        if file in self.state[branch]:
+            # We are maintaining a state for this file on this branch
+            self.state[branch][file]['times_seen_consecutively'] = self.state[branch][file][
+                                                                       'times_seen_consecutively'] + 1
+
+            if self.state[branch][file]['times_seen_consecutively'] >= self.sliding_window_size:
+                self.state[branch][file]['last_commit'] = commit.hexsha
+        else:
+            # We are not currently maintaining a state for this file in this branch, but have
+            # detected it Need to set up the state dict
+            self.state[branch][file] = {'first_commit': commit.hexsha, 'last_commit': commit.hexsha,
+                                        'times_seen_consecutively': 1}
 
     def _should_process_commit(self, changes_in_commit, valid_change_types) -> bool:
         """
