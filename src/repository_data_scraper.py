@@ -355,7 +355,8 @@ class RepositoryDataScraper:
         additional_cherry_pick_scenarios = []
 
         # We could have n > 1 commits of a message, pairwise computation is costly
-        for duplicate_message in duplicate_messages:
+        for duplicate_message in tqdm(duplicate_messages,
+                                      desc='Mining duplicate commit messages for additional cherry-pick scenarios'):
             commits = next(iter(duplicate_message.values()))
             for i, pivot_commit in enumerate(commits):
                 comparison_targets = commits[i + 1:]  # Only process triangular sub-matrix without diagonal
@@ -365,8 +366,7 @@ class RepositoryDataScraper:
                                                           pivot_commit)
             # Timeout mechanism to avoid collecting excessive amounts of scenarios from a single repository
             if len(additional_cherry_pick_scenarios) >= 50:
-                print(f'Early stopping mining for additional cherry-pick scenarios, because 50 were already found.'
-                      f'Skipping {additional_cherry_pick_scenarios} scenario remaining candidates would have been')
+                print(f'Early stopping mining for additional cherry-pick scenarios, because >=50 were already found.\n')
                 break
         print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
         return additional_cherry_pick_scenarios
