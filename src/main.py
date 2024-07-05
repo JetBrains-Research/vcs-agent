@@ -21,7 +21,7 @@ if __name__ == '__main__':
         repository_path = os.path.join(path_to_repositories, "__".join(repository_metadata["name"].split("/")))
         try:
             repo_instance = Repo.clone_from(f'https://github.com/{repository_metadata["name"]}.git',
-                                        f'{repository_path}')
+                                            f'{repository_path}')
         except GitCommandError as e:
             # If already exists, create Repo instance of it
             if 'already exists' in e.stderr:
@@ -30,23 +30,26 @@ if __name__ == '__main__':
             else:
                 raise e
         os.chdir(os.path.join(path_to_data, repository_path))
-    #os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
+        # os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
 
         repo_scraper = RepositoryDataScraper(repository=repo_instance, programming_language=ProgrammingLanguage.PYTHON,
                                              sliding_window_size=4)
         repo_scraper.scrape()
-        #print(repo_scraper.accumulator)
+
         repository_metadata['scraped_data'] = repo_scraper.accumulator
-        repository_metadata['n_merge_commits'] = repo_scraper.n_merge_commits
-        repository_metadata['n_merge_commits_with_resolved_conflicts'] = repo_scraper.n_merge_commits_with_resolved_conflicts
-        repository_metadata['n_cherry_pick_commit_hints'] = repo_scraper.n_cherry_pick_commits
+        repository_metadata['n_merge_scenarios'] = len(repo_scraper.accumulator['merge_scenarios'])
+        repository_metadata['n_cherry_pick_scenarios'] = len(repo_scraper.accumulator['cherry_pick_scenarios'])
+        repository_metadata['n_merge_scenarios_with_resolved_conflicts'] = len(
+            [item for item in repo_scraper.accumulator['merge_scenarios'] if item['had_conflicts']]
+        )
+
         if payload is None:
             payload = pd.DataFrame(columns=repository_metadata.index)
         payload.loc[i] = repository_metadata
 
         print(f'Stats for repository {repository_metadata["name"]}:\n'
               f'Branches: {repository_metadata['branches']}\n'
-              f'Merges: {repo_scraper.n_merge_commits}\n'
-              f'Merges with resolved conflict: {repo_scraper.n_merge_commits_with_resolved_conflicts}\n'
-              f'Cherry-pick commits: {repo_scraper.n_cherry_pick_commits}\n\n')
+              f'Merge scenarios: {repository_metadata['n_merge_scenarios']}\n'
+              f'Merge scenarios with resolved conflict: {repository_metadata['n_merge_scenarios_with_resolved_conflicts']}\n'
+              f'Cherry-pick scenarios: {repository_metadata['n_cherry_pick_scenarios']}\n\n')
     payload.to_parquet(os.path.join(path_to_data, 'payload.parquet'), engine='pyarrow')
