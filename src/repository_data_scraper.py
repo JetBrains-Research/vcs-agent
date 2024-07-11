@@ -81,13 +81,14 @@ class RepositoryDataScraper:
         self.sliding_window_size commits, to mine file-commit grams that overlap outside of a branch.
         """
         valid_change_types = ['A', 'M', 'MM']
-        for branch in tqdm(self.branches, desc=f'Parsing branches {self.repository_name}'):
+        for branch in tqdm(self.branches, desc=f'Parsing branches in {self.repository_name}'):
             try:
                 commit = self.repository.commit(branch)
             except Exception as e:
                 if isinstance(e, BadObject):
-                    warning_content = (f'\nCould not get branch HEAD for branch {branch}. Branch probably contains "@". '
-                                       f'GitPython cant handle that.\n\nSkipping branch ...')
+                    warning_content = (
+                        f'\nCould not get branch HEAD for branch {branch}. Branch probably contains "@". '
+                        f'GitPython cant handle that.\n\nSkipping branch ...')
                     warn(warning_content, category=RuntimeWarning)
                     continue
                 else:
@@ -122,10 +123,6 @@ class RepositoryDataScraper:
                     # Now that we also handled overlaps, stop processing this branch
                     break
 
-                if is_merge_commit:
-                    merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
-                                           'parents': [parent.hexsha for parent in commit.parents]}
-
                 self._process_cherry_pick_scenario(commit)
 
                 changes_in_commit = self._get_changes_in_commit(commit)
@@ -133,11 +130,18 @@ class RepositoryDataScraper:
                 # At this point the commit metadata such as the message are trimmed
                 # Each line represents one file that was changed. This means each line contains the change type and
                 # relative filepath. Thus, it is safe to simply search list string for file endings.
-                if any([(self.programming_language.value in changes_in_commit)
-                        for changes_in_commit in changes_in_commit]):
+                does_commit_contain_changes_in_programming_language = self._does_commit_contain_changes_in_programming_language(changes_in_commit)
+                if does_commit_contain_changes_in_programming_language:
                     self._update_commit_message_tracker(commit)
 
-                if self._should_process_commit(changes_in_commit, valid_change_types):
+                # If it is a merge with conflicts (ie introduced patch) ensure that the changes correspond to
+                # the specified programming_language
+                if is_merge_commit and (len(changes_in_commit) == 0 or
+                                        does_commit_contain_changes_in_programming_language):
+                    merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
+                                           'parents': [parent.hexsha for parent in commit.parents]}
+
+                if self._should_process_commit(changes_in_commit, valid_change_types, does_commit_contain_changes_in_programming_language):
                     affected_files = []
 
                     for change_in_commit in changes_in_commit:
@@ -173,11 +177,28 @@ class RepositoryDataScraper:
             'cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
         print(f'Extra time incurred: {round(time() - start, 4)}s')
 
-    def _should_process_commit(self, changes_in_commit: List[str], valid_change_types: List[str]):
+    def _does_commit_contain_changes_in_programming_language(self, changes_in_commit: List[str]):
         """
+        Check if a commit contains changes in a specific programming language.
+
+        Args:
+            changes_in_commit (List[str]): A list of the changes in the commit.
+
+        Return:
+            True if any change in the commit changes a file of self.programming_language file ending
+        """
+        return any([(self.programming_language.value in changes_in_commit) for changes_in_commit in changes_in_commit])
+
+    def _should_process_commit(self, changes_in_commit: List[str], valid_change_types: List[str],
+                               does_commit_contain_changes_in_programming_language: bool):
+        """
+        Checks if the commit contains any change of valid change type and programming language. # TODO What if it isnt the same file
+
         Args:
             changes_in_commit (List[str]): Changes in the commit.
             valid_change_types (List[str]): Each item represents a type of change that should be processed.
+            does_commit_contain_changes_in_programming_language (bool): Whether the commit contains changes in
+                the programming language specified in self.programming_language.
 
         Returns:
             A boolean value indicating whether the commit should be processed or not.
@@ -185,7 +206,7 @@ class RepositoryDataScraper:
             of the commit matches the programming language for which we are scraping data, otherwise False.
         """
         return self._is_any_change_type_valid(changes_in_commit, valid_change_types) and \
-            any([(self.programming_language.value in changes_in_commit) for changes_in_commit in changes_in_commit])
+            does_commit_contain_changes_in_programming_language
 
     def _is_any_change_type_valid(self, changes_in_commit, valid_change_types) -> bool:
         """
