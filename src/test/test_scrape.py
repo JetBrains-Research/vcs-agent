@@ -15,6 +15,7 @@ class ScrapeTestCase(unittest.TestCase):
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
+                                                             repository_name='demo-repo',
                                                              sliding_window_size=2)
 
         target_file_commit_grams = [{
@@ -57,6 +58,7 @@ class ScrapeTestCase(unittest.TestCase):
         # PYTHON should not contain TEXT grams
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.PYTHON,
+                                                             repository_name='mixed-file-types-demo',
                                                              sliding_window_size=2)
 
         self.repository_data_scraper.scrape()
@@ -69,6 +71,7 @@ class ScrapeTestCase(unittest.TestCase):
         # TEXT should not contain PYTHON grams
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
+                                                             repository_name='mixed-file-types-demo',
                                                              sliding_window_size=2)
 
         self.repository_data_scraper.scrape()
@@ -87,6 +90,7 @@ class ScrapeTestCase(unittest.TestCase):
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
+                                                             repository_name='demo-repo',
                                                              sliding_window_size=2)
 
         target_merge_scenarios = [
@@ -114,6 +118,7 @@ class ScrapeTestCase(unittest.TestCase):
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
+                                                             repository_name='mixed-file-types-demo',
                                                              sliding_window_size=2)
 
         target_cherry_pick_scenarios = [

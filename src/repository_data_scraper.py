@@ -11,6 +11,7 @@ from warnings import warn
 
 class RepositoryDataScraper:
     repository = None
+    repository_name = None
     sliding_window_size = 3
 
     # Accumulates file-commit grams If we detect a series of n consecutive modifications of the same file we append a
@@ -29,13 +30,16 @@ class RepositoryDataScraper:
     programming_language = None
     _cherry_pick_pattern = None
 
-    def __init__(self, repository: Repo, programming_language: ProgrammingLanguage, sliding_window_size: int = 3):
+    def __init__(self, repository: Repo, programming_language: ProgrammingLanguage, repository_name: str,
+                 sliding_window_size: int = 3):
         if repository is None:
             raise ValueError("Please provide a repository instance to scrape from.")
 
         self.repository = repository
         self.sliding_window_size = sliding_window_size
         self.programming_language = programming_language
+
+        self.repository_name = repository_name
 
         self.accumulator = {'file_commit_gram_scenarios': [], 'merge_scenarios': [], 'cherry_pick_scenarios': []}
         self.state = {}
@@ -77,7 +81,7 @@ class RepositoryDataScraper:
         self.sliding_window_size commits, to mine file-commit grams that overlap outside of a branch.
         """
         valid_change_types = ['A', 'M', 'MM']
-        for branch in tqdm(self.branches, desc=f'Parsing branches {self.repository.remotes.origin.url}'):
+        for branch in tqdm(self.branches, desc=f'Parsing branches {self.repository_name}'):
             try:
                 commit = self.repository.commit(branch)
             except Exception as e:

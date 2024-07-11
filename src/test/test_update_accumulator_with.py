@@ -16,6 +16,7 @@ class UpdateAccumulatorWithTestCase(unittest.TestCase):
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
+                                                             repository_name='demo-repo',
                                                              sliding_window_size=4)
 
     def tearDown(self):

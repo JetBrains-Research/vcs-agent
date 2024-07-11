@@ -35,7 +35,9 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
             return repository_metadata
 
     os.chdir(os.path.join(path_to_data, repository_path))
-    repo_scraper = RepositoryDataScraper(repository=repo_instance, programming_language=ProgrammingLanguage.PYTHON,
+    repo_scraper = RepositoryDataScraper(repository=repo_instance,
+                                         programming_language=ProgrammingLanguage.PYTHON,
+                                         repository_name=repository_metadata["name"],
                                          sliding_window_size=3)  # Reduced sliding window size to 3
     try:
         repo_scraper.scrape()
