@@ -17,3 +17,9 @@ In doing so, we mine samples for the following agent scenarios:
 - Subsequent commits modifying the same file (file-commit grams)
 - Merging
 - Cherry-picking
+
+## Known issues
+### unable to create file: Filename too long error
+This issue can occur on Windows, since the new maximum length for file names is opt-in. Please refer to this 
+[documentation on how to fix the issue](https://confluence.atlassian.com/bamkb/git-checkouts-fail-on-windows-with-filename-too-long-error-unable-to-create-file-errors-867363792.html).
+We recommend setting the git workaround, as we still had issue after updating the registry key and restarting.
