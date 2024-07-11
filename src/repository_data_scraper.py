@@ -141,7 +141,7 @@ class RepositoryDataScraper:
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
                                            'parents': [parent.hexsha for parent in commit.parents]}
 
-                if self._should_process_commit(changes_in_commit, valid_change_types, does_commit_contain_changes_in_programming_language):
+                if self._should_process_commit(changes_in_commit, valid_change_types):
                     affected_files = []
 
                     for change_in_commit in changes_in_commit:
@@ -189,44 +189,26 @@ class RepositoryDataScraper:
         """
         return any([(self.programming_language.value in changes_in_commit) for changes_in_commit in changes_in_commit])
 
-    def _should_process_commit(self, changes_in_commit: List[str], valid_change_types: List[str],
-                               does_commit_contain_changes_in_programming_language: bool):
+    def _should_process_commit(self, changes_in_commit: List[str], valid_change_types: List[str]):
         """
-        Checks if the commit contains any change of valid change type and programming language. # TODO What if it isnt the same file
+        Checks if the commit contains any change of valid change type and programming language in the same change.
+        Ie. a file has to be of self.programming_language and its change type must be in valid_change_types
 
         Args:
             changes_in_commit (List[str]): Changes in the commit.
             valid_change_types (List[str]): Each item represents a type of change that should be processed.
-            does_commit_contain_changes_in_programming_language (bool): Whether the commit contains changes in
-                the programming language specified in self.programming_language.
 
         Returns:
             A boolean value indicating whether the commit should be processed or not.
             True if any of the changes in the commit match any of the valid change types and the programming language
             of the commit matches the programming language for which we are scraping data, otherwise False.
         """
-        return self._is_any_change_type_valid(changes_in_commit, valid_change_types) and \
-            does_commit_contain_changes_in_programming_language
-
-    def _is_any_change_type_valid(self, changes_in_commit, valid_change_types) -> bool:
-        """
-        Processes changes in commit to determine if any change is of a valid change type.
-
-        Implicitly ensures that len(changes_in_commit) > 0, because in this case is_any_change_type_valid remains False
-
-        Args:
-            changes_in_commit: A list of changes in the commit.
-            valid_change_types: A list of valid change types.
-
-        Returns:
-            bool: True if any change in the commit is a valid change type, False otherwise.
-        """
-        #
         is_any_change_type_valid = False
         for change in changes_in_commit:
             # Change types such as rename yield a list of length 3 here, cannot simply unpack in every case
             change_type = change.split('\t')[0]
-            is_any_change_type_valid = change_type in valid_change_types
+            is_any_change_type_valid = (change_type in valid_change_types) and (
+                    self.programming_language.value in change)
             if is_any_change_type_valid:
                 return is_any_change_type_valid
         return is_any_change_type_valid
