@@ -131,13 +131,13 @@ def main():
     path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
     repositories_metadata = pd.read_csv(os.path.join(path_to_data, 'python_repos.csv'))
-    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:2]
+    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:100]
     results = []
     paths_to_directories_to_remove = []
 
     with ProcessPoolExecutor() as executor:
         futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data,
-                                   programming_language, 3)
+                                   programming_language, args.sliding_window_size)
                    for _, repo in smaller_repositories_metadata.iterrows()]
         for future in as_completed(futures):
             try:
@@ -162,7 +162,7 @@ def main():
                 print(f'Exception occurred: {traceback.format_exc()}', flush=True)
 
     repositories_metadata = pd.concat(results, axis=1).T
-    repositories_metadata.to_parquet(os.path.join(path_to_data, 'python_small_subset.parquet'), engine='pyarrow')
+    repositories_metadata.to_parquet(os.path.join(path_to_data, 'python_new_subset.parquet'), engine='pyarrow')
 
     # Clean up any remaining repositories created by the scraping process in the repository directory
     for path_to_directory in paths_to_directories_to_remove:
