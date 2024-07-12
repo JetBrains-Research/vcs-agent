@@ -1,6 +1,9 @@
 import unittest
 import os
 from git import Repo
+from sys import path
+
+path.append("..")
 from src.repository_data_scraper import RepositoryDataScraper
 from src.programming_language import ProgrammingLanguage
 

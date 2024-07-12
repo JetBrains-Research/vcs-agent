@@ -6,9 +6,11 @@ from programming_language import ProgrammingLanguage
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import shutil, stat
 import traceback
+from argparse import ArgumentParser
 
 
-def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str, path_to_data: str) -> pd.Series:
+def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str, path_to_data: str,
+                      programming_language: ProgrammingLanguage, sliding_window_size: int) -> pd.Series:
     """
     Scrapes a GitHub repository for data using the given repository metadata and file paths.
 
@@ -16,6 +18,10 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
     - repository_metadata (pd.Series): The metadata of the GitHub repository from SEART.
     - path_to_repositories (str): The path to the directory where repositories will be cloned or accessed.
     - path_to_data (str): The path to the directory where the scraped data will be saved.
+    - programming_language (ProgrammingLanguage): The programming language to filter files by. Only commits
+        concerning files of this programming language will be considered in the scraping.
+    - sliding_window_size (int): The sliding window size to use for scraping file-commit grams.
+        These chains of subsequent commits will be at least of length sliding_window_size.
 
     Returns:
     - repository_metadata (pd.Series): The updated metadata of the GitHub repository, including any errors encountered during scraping.
@@ -36,9 +42,9 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
 
     os.chdir(os.path.join(path_to_data, repository_path))
     repo_scraper = RepositoryDataScraper(repository=repo_instance,
-                                         programming_language=ProgrammingLanguage.PYTHON,
+                                         programming_language=programming_language,
                                          repository_name=repository_metadata["name"],
-                                         sliding_window_size=3)  # Reduced sliding window size to 3
+                                         sliding_window_size=sliding_window_size)  # Reduced sliding window size to 3
     try:
         repo_scraper.scrape()
         repository_metadata = update_repository_metadata_with_scraper_results(repo_scraper, repository_metadata)
@@ -50,7 +56,8 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
     return repository_metadata
 
 
-def update_repository_metadata_with_scraper_results(repo_scraper: RepositoryDataScraper, repository_metadata: pd.Series):
+def update_repository_metadata_with_scraper_results(repo_scraper: RepositoryDataScraper,
+                                                    repository_metadata: pd.Series):
     """
 
     Update repository metadata with scraper results.
@@ -92,19 +99,45 @@ def on_rm_error(func, path, exc_info):
     func(path)
 
 
-if __name__ == '__main__':
+def main():
+    parser = ArgumentParser()
+    parser.add_argument("-w", "--sliding-window-size", type=int,
+                        help="The sliding window size to use for scraping file-commit grams.")
+    parser.add_argument("-p", "--programming-language", type=str,
+                        help="The programming language to filter for. Only commits concerning files of this"
+                             "programming language will be considered. Supported programming languages are:\n"
+                             "'python', 'java', 'kotlin', and 'text'. The latter is only to be used for debugging.")
+    args = parser.parse_args()
+
+    if args.sliding_window_size is None:
+        raise ValueError("Sliding window size must be specified. Unable to determine minimum file-commit gram length.")
+    if args.programming_language is None:
+        raise ValueError(
+            "Programming language must be specified. Unable to determine programming language to filter for.")
+
+    try:
+        programming_language = ProgrammingLanguage[args.programming_language.upper()]
+    except KeyError as e:
+        e.add_note(
+            'Invalid value given for programming language. Unable to determine programming language to filter for.'
+            '\nValid values are: "python", "java", "kotlin", and "text"')
+        raise
+
+    if programming_language is None:
+        raise ValueError("Could not parse programming language. Unable to determine programming language to filter for.")
     os.chdir('..')
 
     path_to_data = os.path.join(os.getcwd(), 'data')
     path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
     repositories_metadata = pd.read_csv(os.path.join(path_to_data, 'python_repos.csv'))
-    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:6]
+    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:2]
     results = []
     paths_to_directories_to_remove = []
 
-    with ProcessPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data)
+    with ProcessPoolExecutor() as executor:
+        futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data,
+                                   programming_language, 3)
                    for _, repo in smaller_repositories_metadata.iterrows()]
         for future in as_completed(futures):
             try:
@@ -137,3 +170,7 @@ if __name__ == '__main__':
             shutil.rmtree(path_to_directory, onerror=on_rm_error)
         except PermissionError:
             continue
+
+
+if __name__ == '__main__':
+    main()
