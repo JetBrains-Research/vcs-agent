@@ -2,7 +2,7 @@ from git import Repo, Commit, NULL_TREE, BadObject
 import re
 from queue import Queue
 from tqdm import tqdm
-from src.programming_language import ProgrammingLanguage
+from programming_language import ProgrammingLanguage
 import hashlib
 from time import time
 from typing import List, Dict

@@ -1,6 +1,9 @@
 import unittest
 import os
 from git import Repo
+from sys import path
+
+path.append("..")
 from src.repository_data_scraper import RepositoryDataScraper
 from src.programming_language import ProgrammingLanguage
 
@@ -140,6 +143,7 @@ class ScrapeTestCase(unittest.TestCase):
 
         for candidate_cherry_pick_scenario in candidate_cherry_pick_scenarios:
             self.assertIn(candidate_cherry_pick_scenario, target_cherry_pick_scenarios)
+
 
 if __name__ == '__main__':
     unittest.main()
