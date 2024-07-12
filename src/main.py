@@ -6,9 +6,11 @@ from programming_language import ProgrammingLanguage
 from concurrent.futures import ProcessPoolExecutor, as_completed
 import shutil, stat
 import traceback
+from argparse import ArgumentParser
 
 
-def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str, path_to_data: str) -> pd.Series:
+def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str, path_to_data: str,
+                      programming_language: ProgrammingLanguage, sliding_window_size: int) -> pd.Series:
     """
     Scrapes a GitHub repository for data using the given repository metadata and file paths.
 
@@ -16,6 +18,10 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
     - repository_metadata (pd.Series): The metadata of the GitHub repository from SEART.
     - path_to_repositories (str): The path to the directory where repositories will be cloned or accessed.
     - path_to_data (str): The path to the directory where the scraped data will be saved.
+    - programming_language (ProgrammingLanguage): The programming language to filter files by. Only commits
+        concerning files of this programming language will be considered in the scraping.
+    - sliding_window_size (int): The sliding window size to use for scraping file-commit grams.
+        These chains of subsequent commits will be at least of length sliding_window_size.
 
     Returns:
     - repository_metadata (pd.Series): The updated metadata of the GitHub repository, including any errors encountered during scraping.
@@ -36,9 +42,9 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
 
     os.chdir(os.path.join(path_to_data, repository_path))
     repo_scraper = RepositoryDataScraper(repository=repo_instance,
-                                         programming_language=ProgrammingLanguage.PYTHON,
+                                         programming_language=programming_language,
                                          repository_name=repository_metadata["name"],
-                                         sliding_window_size=3)  # Reduced sliding window size to 3
+                                         sliding_window_size=sliding_window_size)  # Reduced sliding window size to 3
     try:
         repo_scraper.scrape()
         repository_metadata = update_repository_metadata_with_scraper_results(repo_scraper, repository_metadata)
@@ -92,7 +98,10 @@ def on_rm_error(func, path, exc_info):
     func(path)
 
 
-if __name__ == '__main__':
+def main():
+    parser = ArgumentParser()
+    parser.add_argument("-s", "--scrape_repository", action="store_true",)
+
     os.chdir('..')
 
     path_to_data = os.path.join(os.getcwd(), 'data')
@@ -104,7 +113,8 @@ if __name__ == '__main__':
     paths_to_directories_to_remove = []
 
     with ProcessPoolExecutor(max_workers=2) as executor:
-        futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data)
+        futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data,
+                                   ProgrammingLanguage.PYTHON, 3)
                    for _, repo in smaller_repositories_metadata.iterrows()]
         for future in as_completed(futures):
             try:
@@ -137,3 +147,7 @@ if __name__ == '__main__':
             shutil.rmtree(path_to_directory, onerror=on_rm_error)
         except PermissionError:
             continue
+
+
+if __name__ == '__main__':
+    main()
