@@ -130,7 +130,15 @@ def main():
     path_to_data = os.path.join(os.getcwd(), 'data')
     path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
-    repositories_metadata = pd.read_csv(os.path.join(path_to_data, 'python_repos.csv'))
+    if programming_language is ProgrammingLanguage.KOTLIN:
+        repositories_metadata = pd.read_csv(os.path.join(path_to_data, 'kotlin_repos.csv'))
+    elif programming_language is ProgrammingLanguage.PYTHON:
+        repositories_metadata = pd.read_csv(os.path.join(path_to_data, 'python_repos.csv'))
+    elif programming_language is ProgrammingLanguage.JAVA:
+        repositories_metadata = pd.read_csv(os.path.join(path_to_data, 'java_repos.csv'))
+    else:
+        raise ValueError("Invalid programming language. Unable to determine programming language to filter for.")
+
     smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:100]
     results = []
     paths_to_directories_to_remove = []
