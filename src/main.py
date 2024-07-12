@@ -56,7 +56,8 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
     return repository_metadata
 
 
-def update_repository_metadata_with_scraper_results(repo_scraper: RepositoryDataScraper, repository_metadata: pd.Series):
+def update_repository_metadata_with_scraper_results(repo_scraper: RepositoryDataScraper,
+                                                    repository_metadata: pd.Series):
     """
 
     Update repository metadata with scraper results.
@@ -100,21 +101,43 @@ def on_rm_error(func, path, exc_info):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-s", "--scrape_repository", action="store_true",)
+    parser.add_argument("-w", "--sliding-window-size", type=int,
+                        help="The sliding window size to use for scraping file-commit grams.")
+    parser.add_argument("-p", "--programming-language", type=str,
+                        help="The programming language to filter for. Only commits concerning files of this"
+                             "programming language will be considered. Supported programming languages are:\n"
+                             "'python', 'java', 'kotlin', and 'text'. The latter is only to be used for debugging.")
+    args = parser.parse_args()
 
+    if args.sliding_window_size is None:
+        raise ValueError("Sliding window size must be specified. Unable to determine minimum file-commit gram length.")
+    if args.programming_language is None:
+        raise ValueError(
+            "Programming language must be specified. Unable to determine programming language to filter for.")
+
+    try:
+        programming_language = ProgrammingLanguage[args.programming_language.upper()]
+    except KeyError as e:
+        e.add_note(
+            'Invalid value given for programming language. Unable to determine programming language to filter for.'
+            '\nValid values are: "python", "java", "kotlin", and "text"')
+        raise
+
+    if programming_language is None:
+        raise ValueError("Could not parse programming language. Unable to determine programming language to filter for.")
     os.chdir('..')
 
     path_to_data = os.path.join(os.getcwd(), 'data')
     path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
     repositories_metadata = pd.read_csv(os.path.join(path_to_data, 'python_repos.csv'))
-    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:6]
+    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:2]
     results = []
     paths_to_directories_to_remove = []
 
-    with ProcessPoolExecutor(max_workers=2) as executor:
+    with ProcessPoolExecutor() as executor:
         futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data,
-                                   ProgrammingLanguage.PYTHON, 3)
+                                   programming_language, 3)
                    for _, repo in smaller_repositories_metadata.iterrows()]
         for future in as_completed(futures):
             try:
