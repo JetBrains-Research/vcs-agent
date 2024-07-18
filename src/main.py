@@ -159,6 +159,9 @@ def main():
                     except PermissionError:
                         remaining_paths_to_directories_to_remove.append(path_to_directory)
                         continue
+                    except FileNotFoundError:
+                        remaining_paths_to_directories_to_remove.append(path_to_directory)
+                        continue
 
                 paths_to_directories_to_remove = remaining_paths_to_directories_to_remove
             except Exception as e:
