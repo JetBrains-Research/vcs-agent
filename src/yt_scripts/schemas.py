@@ -1,11 +1,11 @@
-import yt.wrapper as yt
-
-from dataclasses import dataclass
+from yt.wrapper import yt_dataclass
 from typing import Optional
 
+@yt_dataclass
+class DummyRow:
+    content: str
 
-@yt.yt_dataclass
-@dataclass
+@yt_dataclass
 class RepositoryDataRow:
     id: int
     name: Optional[str]
