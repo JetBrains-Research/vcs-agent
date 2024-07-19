@@ -1,9 +1,11 @@
 from yt.wrapper import yt_dataclass
 from typing import Optional
 
+
 @yt_dataclass
 class DummyRow:
     content: str
+
 
 @yt_dataclass
 class RepositoryDataRow:
