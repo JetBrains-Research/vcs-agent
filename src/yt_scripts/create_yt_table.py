@@ -32,7 +32,7 @@ src_table_path = yt.TablePath(
 yt_client.write_table_structured(
     src_table_path,
     DummyRow,
-    [DummyRow(content='test daten')]
+    [DummyRow(content='testing')]
 )
 
 # Create output table
