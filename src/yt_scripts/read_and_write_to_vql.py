@@ -1,16 +1,16 @@
 import os
 import yt.wrapper as yt
 
-from mapper import DummyMapper
+from mapper import RepositoryDataMapper
 
 def main():
     yt_client = yt.YtClient(proxy=os.environ["YT_PROXY"], token=os.environ["YT_TOKEN"])
 
-    src_table = "//home/ml4se/tobias_lindenbauer/data/demo_repositories_to_scrape"
-    dst_table = "//home/ml4se/tobias_lindenbauer/data/demo_scraper_output"
+    src_table = "//home/ml4se/tobias_lindenbauer/data/repositories_to_scrape"
+    dst_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
 
     yt_client.run_map(
-        DummyMapper(),
+        RepositoryDataMapper(),
         src_table,
         dst_table,
 
