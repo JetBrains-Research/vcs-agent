@@ -21,7 +21,10 @@ def main():
         spec={
             "mapper": {
                 "docker_image": "docker.io/liqsdev/ytsaurus:python-3.10",
-            }
+            },
+            "tmpfs_path": ".",
+            "memory_limit": 10 * 1024 ** 3,
+            "tmpfs_size": 2 * 1024 ** 3
         },
     )
 
