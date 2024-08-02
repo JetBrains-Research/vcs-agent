@@ -14,6 +14,7 @@ def main():
         RepositoryDataMapper(),
         src_table,
         dst_table,
+        job_count=3,
 
         # Specifying this aligns the python versions (apparently Nebius clusters run on 3.8 by default),
         # but Im pretty sure the YSON problem comes from the image not containing bindings.
