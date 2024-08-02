@@ -4,7 +4,8 @@ import yt.wrapper as yt
 from mapper import RepositoryDataMapper
 
 def main():
-    yt_client = yt.YtClient(proxy=os.environ["YT_PROXY"], token=os.environ["YT_TOKEN"])
+    yt_client = yt.YtClient(proxy=os.environ["YT_PROXY"], token=os.environ["YT_TOKEN"],
+                            config={'pickling': {'ignore_system_modules': True}})
 
     src_table = "//home/ml4se/tobias_lindenbauer/data/repositories_to_scrape"
     dst_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
