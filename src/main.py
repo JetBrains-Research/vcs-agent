@@ -155,7 +155,7 @@ def main():
                 results.append(result)
                 paths_to_directories_to_remove.append(os.path.join(path_to_repositories,
                                                                    "__".join(result["name"].split("/"))))
-                print(f'\n\nScraped {len(results)} repos. {results[-1]['name']}', flush=True)
+                print(f'\n\nScraped {len(results)} repos. {results[-1]["name"]}', flush=True)
 
                 # After every success attempt to clean up directory structure
                 for path_to_directory in paths_to_directories_to_remove:
