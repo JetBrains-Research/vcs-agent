@@ -1,8 +1,10 @@
+import sys
+
 from git import Repo, Commit, NULL_TREE, BadObject
 import re
 from queue import Queue
 from tqdm import tqdm
-from programming_language import ProgrammingLanguage
+from src.programming_language import ProgrammingLanguage
 import hashlib
 from time import time
 from typing import List, Dict
@@ -175,7 +177,7 @@ class RepositoryDataScraper:
         start = time()
         self.accumulator[
             'cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
-        print(f'Extra time incurred: {round(time() - start, 4)}s')
+        print(f'Extra time incurred: {round(time() - start, 4)}s', file=sys.stderr)
 
     def _does_commit_contain_changes_in_programming_language(self, changes_in_commit: List[str]):
         """
@@ -398,12 +400,14 @@ class RepositoryDataScraper:
                         break
             # Timeout mechanisms to avoid collecting excessive amounts of scenarios from a single repository
             if len(additional_cherry_pick_scenarios) >= 50:
-                print(f'Early stopping mining for additional cherry-pick scenarios, because >=50 were already found.\n')
+                print(f'Early stopping mining for additional cherry-pick scenarios, because >=50 were already found.\n',
+                      file=sys.stderr)
                 break
             if time() > start_time + timeout:
-                print(f'Early stopping mining for additional cherry-pick scenarios timeout of 3min was hit.\n')
+                print(f'Early stopping mining for additional cherry-pick scenarios timeout of 3min was hit.\n',
+                      file=sys.stderr)
                 break
-        print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
+        print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.', file=sys.stderr)
         return additional_cherry_pick_scenarios
 
     def _append_cherry_pick_scenario(self, additional_cherry_pick_scenarios: List[Dict], comparison_target: Commit,
