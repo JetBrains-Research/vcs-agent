@@ -40,7 +40,7 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
             repository_metadata['error'] = traceback.format_exc()
             return repository_metadata
 
-    os.chdir(os.path.join(path_to_data, repository_path))
+    os.chdir(repository_path)
     repo_scraper = RepositoryDataScraper(repository=repo_instance,
                                          programming_language=programming_language,
                                          repository_name=repository_metadata["name"],
