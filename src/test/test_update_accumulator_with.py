@@ -14,8 +14,8 @@ class UpdateAccumulatorWithTestCase(unittest.TestCase):
         os.chdir('../..')
         path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
-        demo_repo = Repo(os.path.join(path_to_repositories, 'demo-repo'))
-        os.chdir(os.path.join(path_to_repositories, 'demo-repo'))
+        demo_repo = Repo(os.path.join(path_to_repositories, 'demo-repo.git'))
+        os.chdir(os.path.join(path_to_repositories, 'demo-repo.git'))
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
