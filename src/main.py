@@ -134,10 +134,11 @@ def main():
         raise ValueError("Invalid programming language. Unable to determine programming language to filter for.")
 
     smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:100]
+    smaller_repositories_metadata.loc[:, 'error'] = None
     results = []
     paths_to_directories_to_remove = []
 
-    with ProcessPoolExecutor() as executor:
+    with ProcessPoolExecutor(max_workers=None) as executor:
         futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data,
                                    programming_language, args.sliding_window_size)
                    for _, repo in smaller_repositories_metadata.iterrows()]
