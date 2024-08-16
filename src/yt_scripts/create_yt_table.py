@@ -8,6 +8,35 @@ import re
 from schemas import RepositoryDataRow
 
 
+def setup_input_data(path_to_data):
+    """
+    Loads the repository metadata for Kotlin, Java and Python into a single dataframe, converts all column names
+    to snake case and returns the dataframe
+
+    Right now limited to repositories with less than 100 branches and 100 repositories per language for testing purposes.
+
+    Parameters:
+    - `path_to_data` (str): The path to the directory containing the input data files.
+
+    Returns:
+    - `df` (pandas DataFrame): The concatenated DataFrame with the input data, where all column names are converted to snake case.
+
+    """
+    input_dfs = []
+
+    for input_file in ['kotlin_repos.csv', 'java_repos.csv', 'python_repos.csv']:
+        df = pd.read_csv(os.path.join(path_to_data, input_file))
+        df = df[df['branches'] < 100].iloc[:100]  # Limit to smaller repositories for testing
+        df['programmingLanguage'] = input_file.split('_')[0]
+        input_dfs.append(df)
+
+    df = pd.concat(input_dfs, ignore_index=True)
+
+    # Convert all column names to snake case
+    df.columns = [camel_to_snake(col) for col in df.columns]
+    return df
+
+
 def camel_to_snake(name: str) -> str:
     """
     Converts a camel-case string to snake_case.
@@ -31,40 +60,37 @@ def camel_to_snake(name: str) -> str:
     return name.lower()
 
 
-yt_client = yt.YtClient(proxy=os.environ["YT_PROXY"], token=os.environ["YT_TOKEN"])
-path_to_data = os.path.join(os.getcwd(), 'data')
+def main():
+    yt_client = yt.YtClient(proxy=os.environ["YT_PROXY"], token=os.environ["YT_TOKEN"])
+    path_to_data = os.path.join(os.getcwd(), 'data')
 
-input_dfs = []
-for input_file in ['kotlin_repos.csv', 'java_repos.csv', 'python_repos.csv']:
-    df = pd.read_csv(os.path.join(path_to_data, input_file))
-    df['programmingLanguage'] = input_file.split('_')[0]
-    input_dfs.append(df)
+    df = setup_input_data(path_to_data)
 
-df = pd.concat(input_dfs, ignore_index=True)
-# Convert all column names to snake case
-df.columns = [camel_to_snake(col) for col in df.columns]
+    # Ensure missing values in UTF-8 objects are encoded as "None" instead of nan from float.
+    object_columns = list(df.select_dtypes(include=[object]).columns)
+    df[object_columns] = df[object_columns].replace(float('nan'), None)
 
-# Ensure missing values in UTF-8 objects are encoded as "None" instead of nan from float.
-object_columns = list(df.select_dtypes(include=[object]).columns)
-df[object_columns] = df[object_columns].replace(float('nan'), None)
+    # Create input table
+    src_table = "//home/ml4se/tobias_lindenbauer/data/repositories_to_scrape"
+    src_table_path = yt.TablePath(
+        src_table,
+        schema=TableSchema.from_row_type(RepositoryDataRow)
+    )
 
-# Create input table
-src_table = "//home/ml4se/tobias_lindenbauer/data/repositories_to_scrape"
-src_table_path = yt.TablePath(
-    src_table,
-    schema=TableSchema.from_row_type(RepositoryDataRow)
-)
+    yt_client.write_table(
+        table=src_table_path,
+        input_stream=df.to_dict(orient="records"),
+    )
 
-yt_client.write_table(
-    table=src_table_path,
-    input_stream=df.to_dict(orient="records"),
-)
+    # Create output table
+    dst_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
+    dst_table_path = yt.TablePath(
+        dst_table,
+        schema=TableSchema.from_row_type(RepositoryDataRow)
+    )
 
-# Create output table
-dst_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
-dst_table_path = yt.TablePath(
-    dst_table,
-    schema=TableSchema.from_row_type(RepositoryDataRow)
-)
+    yt_client.create('table', dst_table_path)
 
-yt_client.create('table', dst_table_path)
+
+if __name__ == '__main__':
+    main()
