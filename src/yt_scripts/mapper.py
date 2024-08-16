@@ -44,7 +44,10 @@ class RepositoryDataMapper(yt.TypedJob):
 
             repo_scraper.scrape()
             print(repo_scraper.accumulator, file=sys.stderr)
-            row.scraped_data = str(repo_scraper.accumulator)
+
+            row.file_commit_gram_scenarios = str(repo_scraper.accumulator['file_commit_gram_scenarios'])
+            row.merge_scenarios = str(repo_scraper.accumulator['merge_scenarios'])
+            row.cherry_pick_scenarios = str(repo_scraper.accumulator['cherry_pick_scenarios'])
         except Exception as e:
             row.error = traceback.format_exc()
             yield row  # Note that the column scrapedData could be empty here

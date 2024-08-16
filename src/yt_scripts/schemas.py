@@ -45,5 +45,7 @@ class RepositoryDataRow:
     labels: Optional[str]
     topics: Optional[str]
     programming_language: Optional[str]
-    scraped_data: Optional[str]
+    file_commit_gram_scenarios: Optional[str]
+    merge_scenarios: Optional[str]
+    cherry_pick_scenarios: Optional[str]
     error: Optional[str]
