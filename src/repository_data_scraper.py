@@ -164,7 +164,7 @@ class RepositoryDataScraper:
                         self._maintain_state_for_change_in_commit(branch, commit, file)
                     self._remove_stale_file_states(affected_files, branch)
 
-                if is_merge_commit:
+                if is_merge_commit and merge_commit_sample:
                     self.accumulator['merge_scenarios'].append(merge_commit_sample)
 
             self._handle_last_commit_file_commit_gram_edge_case()
