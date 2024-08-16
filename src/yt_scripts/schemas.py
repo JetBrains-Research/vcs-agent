@@ -46,3 +46,4 @@ class RepositoryDataRow:
     topics: Optional[str]
     programmingLanguage: Optional[str]
     scrapedData: Optional[str]
+    error: Optional[str]
