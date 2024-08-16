@@ -101,19 +101,13 @@ def on_rm_error(func, path, exc_info):
 
 def main():
     parser = ArgumentParser()
-    parser.add_argument("-w", "--sliding-window-size", type=int,
+    parser.add_argument("-w", "--sliding-window-size", type=int, required=True,
                         help="The sliding window size to use for scraping file-commit grams.")
-    parser.add_argument("-p", "--programming-language", type=str,
+    parser.add_argument("-p", "--programming-language", type=str, required=True,
                         help="The programming language to filter for. Only commits concerning files of this"
                              "programming language will be considered. Supported programming languages are:\n"
                              "'python', 'java', 'kotlin', and 'text'. The latter is only to be used for debugging.")
     args = parser.parse_args()
-
-    if args.sliding_window_size is None:
-        raise ValueError("Sliding window size must be specified. Unable to determine minimum file-commit gram length.")
-    if args.programming_language is None:
-        raise ValueError(
-            "Programming language must be specified. Unable to determine programming language to filter for.")
 
     try:
         programming_language = ProgrammingLanguage[args.programming_language.upper()]
