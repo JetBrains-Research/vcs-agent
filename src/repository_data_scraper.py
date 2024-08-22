@@ -45,7 +45,8 @@ class RepositoryDataScraper:
 
         self.accumulator = {'file_commit_gram_scenarios': [], 'merge_scenarios': [], 'cherry_pick_scenarios': []}
         self.state = {}
-        self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
+        self.branches = [ref.name for ref in self.repository.references if ('HEAD' not in ref.name)
+                         and not ref.path.startswith('refs/tags')]
 
         self.visited_commits = set()
         self.seen_commit_messages = dict()
