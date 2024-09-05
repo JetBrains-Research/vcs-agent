@@ -26,7 +26,6 @@ def setup_input_data(path_to_data):
 
     for input_file in ['kotlin_repos.csv', 'java_repos.csv', 'python_repos.csv']:
         df = pd.read_csv(os.path.join(path_to_data, input_file))
-        df = df[df['branches'] < 100].iloc[:100]  # Limit to smaller repositories for testing
         df['programmingLanguage'] = input_file.split('_')[0]
         input_dfs.append(df)
 
