@@ -12,7 +12,7 @@ def main():
     dst_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
 
     yt_client.run_map(
-        RepositoryDataMapper(),
+        RepositoryDataMapper(sliding_window_size=3),
         src_table,
         dst_table,
         # Set to the amount of total repositories in src_table to enqueue individual repos and

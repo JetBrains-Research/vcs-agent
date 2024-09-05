@@ -34,6 +34,13 @@ def on_rm_error(func, path, exc_info):
 
 
 class RepositoryDataMapper(yt.TypedJob):
+    sliding_window_size: int = -1
+
+    def __init__(self, sliding_window_size: int = 3):
+        super(RepositoryDataMapper, self).__init__()
+        self.sliding_window_size = sliding_window_size
+        print(f'Using sliding_window_size={self.sliding_window_size}', file=sys.stderr)
+
     def __call__(self, row: RepositoryDataRow) -> Iterable[RepositoryDataRow]:
         repository_folder = "__".join(row.name.split("/"))
         path_to_repository = os.path.join('/slot/sandbox/repos', repository_folder)
@@ -57,8 +64,7 @@ class RepositoryDataMapper(yt.TypedJob):
             repo_scraper = RepositoryDataScraper(repository=repo_instance,
                                                  programming_language=programming_language,
                                                  repository_name=row.name,
-                                                 sliding_window_size=3)  # TODO hardcoded; Reduced sliding window size to 3
-
+                                                 sliding_window_size=self.sliding_window_size)
             repo_scraper.scrape()
 
             row.file_commit_gram_scenarios = str(repo_scraper.accumulator['file_commit_gram_scenarios'])
