@@ -380,6 +380,12 @@ class RepositoryDataScraper:
         start_time = time()
         timeout = 180
 
+        # Start with the messages with the least amount of duplicates (ascending), to cover the most ground
+        # before the timeout. This way we ensure a large diversity in the potential samples we
+        # consider without spending excessive effort on one message with an excessive amount
+        # of duplicates
+        duplicate_messages = sorted(duplicate_messages, key=lambda msg: len(list(msg.values())[0]), reverse=False)
+
         for duplicate_message in tqdm(duplicate_messages,
                                       desc='Mining duplicate commit messages for additional cherry-pick scenarios'):
             commits = next(iter(duplicate_message.values()))
