@@ -1,8 +1,10 @@
+import sys
+
 from git import Repo, Commit, NULL_TREE, BadObject
 import re
 from queue import Queue
 from tqdm import tqdm
-from programming_language import ProgrammingLanguage
+from src.programming_language import ProgrammingLanguage
 import hashlib
 from time import time
 from typing import List, Dict
@@ -43,7 +45,8 @@ class RepositoryDataScraper:
 
         self.accumulator = {'file_commit_gram_scenarios': [], 'merge_scenarios': [], 'cherry_pick_scenarios': []}
         self.state = {}
-        self.branches = [b.name for b in self.repository.references if 'HEAD' not in b.name]
+        self.branches = [ref.name for ref in self.repository.references if ('HEAD' not in ref.name)
+                         and not ref.path.startswith('refs/tags')]
 
         self.visited_commits = set()
         self.seen_commit_messages = dict()
@@ -175,7 +178,7 @@ class RepositoryDataScraper:
         start = time()
         self.accumulator[
             'cherry_pick_scenarios'] += self._mine_commits_with_duplicate_messages_for_cherry_pick_scenarios()
-        print(f'Extra time incurred: {round(time() - start, 4)}s')
+        print(f'Extra time incurred: {round(time() - start, 4)}s', file=sys.stderr)
 
     def _does_commit_contain_changes_in_programming_language(self, changes_in_commit: List[str]):
         """
@@ -377,6 +380,12 @@ class RepositoryDataScraper:
         start_time = time()
         timeout = 180
 
+        # Start with the messages with the least amount of duplicates (ascending), to cover the most ground
+        # before the timeout. This way we ensure a large diversity in the potential samples we
+        # consider without spending excessive effort on one message with an excessive amount
+        # of duplicates
+        duplicate_messages = sorted(duplicate_messages, key=lambda msg: len(list(msg.values())[0]), reverse=False)
+
         for duplicate_message in tqdm(duplicate_messages,
                                       desc='Mining duplicate commit messages for additional cherry-pick scenarios'):
             commits = next(iter(duplicate_message.values()))
@@ -396,14 +405,17 @@ class RepositoryDataScraper:
                         # commit. This way other_cherry_pick_commit will not be matched with original_commit AND
                         # previous_cherry_pick_commit.
                         break
+
+                    if time() > start_time + timeout:
+                        print(f'Early stopping mining for additional cherry-pick scenarios timeout of 3min was hit.\n',
+                              file=sys.stderr)
+                        break
             # Timeout mechanisms to avoid collecting excessive amounts of scenarios from a single repository
             if len(additional_cherry_pick_scenarios) >= 50:
-                print(f'Early stopping mining for additional cherry-pick scenarios, because >=50 were already found.\n')
+                print(f'Early stopping mining for additional cherry-pick scenarios, because >=50 were already found.\n',
+                      file=sys.stderr)
                 break
-            if time() > start_time + timeout:
-                print(f'Early stopping mining for additional cherry-pick scenarios timeout of 3min was hit.\n')
-                break
-        print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.')
+        print(f'Found {len(additional_cherry_pick_scenarios)} additional cherry pick scenarios.', file=sys.stderr)
         return additional_cherry_pick_scenarios
 
     def _append_cherry_pick_scenario(self, additional_cherry_pick_scenarios: List[Dict], comparison_target: Commit,

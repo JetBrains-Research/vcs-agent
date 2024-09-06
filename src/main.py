@@ -9,7 +9,7 @@ import traceback
 from argparse import ArgumentParser
 
 
-def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str, path_to_data: str,
+def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
                       programming_language: ProgrammingLanguage, sliding_window_size: int) -> pd.Series:
     """
     Scrapes a GitHub repository for data using the given repository metadata and file paths.
@@ -17,7 +17,6 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
     Parameters:
     - repository_metadata (pd.Series): The metadata of the GitHub repository from SEART.
     - path_to_repositories (str): The path to the directory where repositories will be cloned or accessed.
-    - path_to_data (str): The path to the directory where the scraped data will be saved.
     - programming_language (ProgrammingLanguage): The programming language to filter files by. Only commits
         concerning files of this programming language will be considered in the scraping.
     - sliding_window_size (int): The sliding window size to use for scraping file-commit grams.
@@ -40,7 +39,7 @@ def scrape_repository(repository_metadata: pd.Series, path_to_repositories: str,
             repository_metadata['error'] = traceback.format_exc()
             return repository_metadata
 
-    os.chdir(os.path.join(path_to_data, repository_path))
+    os.chdir(repository_path)
     repo_scraper = RepositoryDataScraper(repository=repo_instance,
                                          programming_language=programming_language,
                                          repository_name=repository_metadata["name"],
@@ -139,7 +138,7 @@ def main():
     paths_to_directories_to_remove = []
 
     with ProcessPoolExecutor(max_workers=None) as executor:
-        futures = [executor.submit(scrape_repository, repo, path_to_repositories, path_to_data,
+        futures = [executor.submit(scrape_repository, repo, path_to_repositories,
                                    programming_language, args.sliding_window_size)
                    for _, repo in smaller_repositories_metadata.iterrows()]
         for future in as_completed(futures):
@@ -159,13 +158,16 @@ def main():
                     except PermissionError:
                         remaining_paths_to_directories_to_remove.append(path_to_directory)
                         continue
+                    except FileNotFoundError:
+                        remaining_paths_to_directories_to_remove.append(path_to_directory)
+                        continue
 
                 paths_to_directories_to_remove = remaining_paths_to_directories_to_remove
             except Exception as e:
                 print(f'Exception occurred: {traceback.format_exc()}', flush=True)
 
     repositories_metadata = pd.concat(results, axis=1).T
-    repositories_metadata.to_parquet(os.path.join(path_to_data, 'python_new_subset.parquet'), engine='pyarrow')
+    repositories_metadata.to_parquet(os.path.join(path_to_data, 'testing.parquet'), engine='pyarrow')
 
     # Clean up any remaining repositories created by the scraping process in the repository directory
     for path_to_directory in paths_to_directories_to_remove:
