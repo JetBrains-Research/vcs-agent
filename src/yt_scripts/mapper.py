@@ -2,7 +2,7 @@ import os
 import shutil, stat
 import sys
 
-from schemas import DummyRow, RepositoryDataRow
+from src.yt_scripts.schemas import DummyRow, RepositoryDataRow
 from typing import Iterable
 import yt.wrapper as yt
 
