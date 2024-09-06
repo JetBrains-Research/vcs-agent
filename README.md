@@ -24,6 +24,12 @@ You can use the `RepositoryDataScraper` to scrape your own repository or you per
 to mine additional scenarios for AI Agents. In either case, follow the setup instructions in this section to
 setup and run the system locally.
 
+## File Structure
+Some files are just included for documentation purposes, such as `src/notebooks/analyze_dataset.ipynb` for which
+the raw dataset .csv is not included. We will probably release the dataset on HuggingFace at a later point.
+
+
+
 ## Known issues
 ### unable to create file: Filename too long error
 This issue can occur on Windows, since the new maximum length for file names is opt-in. Please refer to this 
