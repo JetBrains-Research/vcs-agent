@@ -1,5 +1,6 @@
 from yt.wrapper import yt_dataclass
 from typing import Optional
+from dataclasses import dataclass
 
 
 @yt_dataclass
@@ -8,6 +9,7 @@ class DummyRow:
 
 
 @yt_dataclass
+@dataclass
 class RepositoryDataRow:
     id: int
     name: Optional[str]
