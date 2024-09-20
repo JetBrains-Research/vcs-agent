@@ -9,8 +9,8 @@ import yt.wrapper as yt
 from git import Repo
 import traceback
 
-from src.repository_data_scraper import RepositoryDataScraper
-from src.programming_language import ProgrammingLanguage
+from src.repository_data_scraper.repository_data_scraper import RepositoryDataScraper
+from src.repository_data_scraper.programming_language import ProgrammingLanguage
 
 
 class DummyMapper(yt.TypedJob):
