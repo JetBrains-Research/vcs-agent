@@ -4,8 +4,8 @@ from git import Repo
 from sys import path
 
 path.append("..")
-from src.repository_data_scraper import RepositoryDataScraper
-from src.programming_language import ProgrammingLanguage
+from src.repository_data_scraper.repository_data_scraper import RepositoryDataScraper
+from src.repository_data_scraper.programming_language import ProgrammingLanguage
 
 
 class UpdateAccumulatorWithTestCase(unittest.TestCase):

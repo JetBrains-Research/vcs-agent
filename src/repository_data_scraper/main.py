@@ -118,7 +118,7 @@ def main():
 
     if programming_language is None:
         raise ValueError("Could not parse programming language. Unable to determine programming language to filter for.")
-    os.chdir('..')
+    os.chdir('../..')
 
     path_to_data = os.path.join(os.getcwd(), 'data')
     path_to_repositories = os.path.join(os.getcwd(), 'repos')
