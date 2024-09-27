@@ -1,6 +1,0 @@
-# pack-refs with: peeled fully-peeled sorted 
-464e49457108e9685e0634c9da87254a85c06c07 refs/heads/compliance-doc2
-cf99230146d4be91004b0a68c17c69ce65945ad2 refs/heads/doc-style-experimentation
-7821ce308f797eeec65da787b96c829238e15d11 refs/heads/document2
-e7f94bfac56abc6a0b408fee81c018fd220030f0 refs/heads/document2-bugfixes
-10a966989607b8b21bbfb9512b2bbd1153f7e6dd refs/heads/master
