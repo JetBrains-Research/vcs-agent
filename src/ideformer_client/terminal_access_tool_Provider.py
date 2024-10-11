@@ -21,13 +21,9 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
     #   However I kinda just want to pull SOME repo, so I will leave this out for now.
     #   For testing I will just hardcode some repo and scenario so that I can develop this further without needing YSON
     # The image we are using is built on Python 3.10 and includes git, so no need to install it here.
-    DEFAULT_COMMAND: str = (# Set up the repository and validate that the setup worked. Use HTTPS to clone.
-                            "git clone https://github.com/{repository}.git {repository_dir} && "
-                            "cd {repository_dir} && git status &&"
-                            # Ensure that the container does not exit immediately after finishing the setup. 
+    DEFAULT_COMMAND: str = (# Ensure that the container does not exit immediately after finishing the setup.
                             # Give some time to specify the agents task and start it up.
                             "while true; do sleep 1000; done")
-
     DEFAULT_ERROR: str = "ERROR: Could not execute given command."
 
     def __init__(
@@ -51,6 +47,10 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         self.image = image
         self.env_vars = env_vars
         self.repository_workdir = repository_workdir
+
+        # The initial command is executed in self.start_container(). In the creation command the entrypoint specifies
+        # to which command line tool the command is passed. Thus the command should be a well-defined bash command,
+        # if we want to run it in bash. Here we prepend '-c' to ensure this.
         self.command = (
             f"-c \"{self.DEFAULT_COMMAND.format(repository=repository, repository_dir=repository.split('/')[-1])}\""
             if command is None
@@ -65,6 +65,8 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         self.pull_image()
         self.container = self.start_container()
 
+        # Only the initial start-up command is run in bash through the entrypoint specified, thus we need to also
+        # prepend it again here. Same as in the actual tool call.
         err_code, output = self.container.exec_run("/bin/bash -c pwd")
         if err_code == 0:
             self.workdir = output.decode("utf-8").strip()
@@ -95,16 +97,20 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             self.client.images.pull(repository=repository, tag=tag)
 
     def start_container(self) -> Container:
+        # Creates a container with the specified image and environment variables. Also primes the container to run
+        # self.command on start-up with the command line tool specified in 'entrypoint'.
         container = self.client.containers.create(
             image=self.image, command=self.command, environment=self.env_vars, detach=True, entrypoint="/bin/bash"
         )
         if container.status == "created":
+            # Now the command is executed
             container.start()
 
         start_time = time.time()
         while time.time() - start_time < self.container_start_timeout:
             container.reload()
             if container.status == "running":
+                # Note that it is not guaranteed that the start-up command has already concluded at this point.
                 logging.info(f"Container for {self.repository} started successfully")
                 return container
             elif container.status == "exited":
@@ -129,16 +135,18 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         """
         Executes a given bash command inside a Docker container.
         """
-        command = f"/bin/bash {command}"
+        # At this point the passed command is just what the agent wants to execute in the terminal. Thus, we still need
+        # to prepend the bash call and '-c' flag to execute the command in the string. Note that the command should
+        # use double quotes " to ensure it is properly nested in the wrapping string.
+        command = f'/bin/bash -c "{command}"'
         logging.info(f'Command to execute in container: {command}')
 
         if self.bash_timeout is not None:
             command = f"timeout {self.bash_timeout} {command}"
         try:
-            err_code, output = self.container.exec_run('/bin/bash -c "pwd && ls && ls .."')
             if self.repository_workdir:
                 err_code, output = self.container.exec_run(
-                    command, workdir=self.workdir + '/' + self.repository.split("/")[-1]
+                    command, workdir=self.workdir + '/' + self.repository.split("/")[-1], privileged=False,
                 )
             else:
                 err_code, output = self.container.exec_run(command)
