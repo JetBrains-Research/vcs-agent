@@ -6,7 +6,7 @@ from typing import List, Dict
 import yt.wrapper as yt
 from yt.wrapper.schema import TableSchema
 
-from schemas import RepositoryDataRow
+from src.yt_scripts.schemas import RepositoryDataRow
 
 def get_scenario_at(scenario_index: int, scenarios: List) -> Dict:
     """
