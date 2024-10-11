@@ -144,6 +144,9 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         if self.bash_timeout is not None:
             command = f"timeout {self.bash_timeout} {command}"
         try:
+            if 'sudo' in command or '-rf' in command:
+                raise PermissionError(f'Prohibited string "sudo" or "-rf" found in {command}.')
+
             if self.repository_workdir:
                 err_code, output = self.container.exec_run(
                     command, workdir=self.workdir + '/' + self.repository.split("/")[-1], privileged=False,
@@ -155,6 +158,8 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
                 output = f"{self.error_message}\n{output}"
         except ValueError:
             return self.error_message
+        except PermissionError as e:
+            return str(e)
 
         if self.max_num_chars_bash_output is not None:
             return output[: self.max_num_chars_bash_output]
