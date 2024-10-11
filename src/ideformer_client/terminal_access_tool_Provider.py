@@ -152,7 +152,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
                     command, workdir=self.workdir + '/' + self.repository.split("/")[-1], privileged=False,
                 )
             else:
-                err_code, output = self.container.exec_run(command)
+                err_code, output = self.container.exec_run(command, privileged=False)
             output = output.decode("utf-8")
             if err_code != 0:
                 output = f"{self.error_message}\n{output}"
