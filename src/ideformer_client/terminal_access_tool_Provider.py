@@ -20,15 +20,12 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
     # TODO: At this point we already know the first scenario, so it does make sense to include a revision to check out too
     #   However I kinda just want to pull SOME repo, so I will leave this out for now.
     #   For testing I will just hardcode some repo and scenario so that I can develop this further without needing YSON
-    # The image we are using is built on Python 3.10 and includes git, so no need to install it here.
-    DEFAULT_COMMAND: str = (# Ensure that the container does not exit immediately after finishing the setup.
-                            # Give some time to specify the agents task and start it up.
-                            "while true; do sleep 1000; done")
     DEFAULT_ERROR: str = "ERROR: Could not execute given command."
 
     def __init__(
             self,
             repository: str,
+            scenario: dict,
             image: str,
             command: Optional[str],
             error_message: Optional[str],
@@ -44,6 +41,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         logging.basicConfig(level=logging.INFO)
 
         self.repository = repository
+        self.scenario = scenario
         self.image = image
         self.env_vars = env_vars
         self.repository_workdir = repository_workdir
@@ -51,11 +49,11 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         # The initial command is executed in self.start_container(). In the creation command the entrypoint specifies
         # to which command line tool the command is passed. Thus the command should be a well-defined bash command,
         # if we want to run it in bash. Here we prepend '-c' to ensure this.
-        self.command = (
-            f"-c \"{self.DEFAULT_COMMAND.format(repository=repository, repository_dir=repository.split('/')[-1])}\""
-            if command is None
-            else f"-c \"{command.format(repository=repository, repository_dir=repository.split('/')[-1])}\""
-        )
+        # self.command = (
+        #     f"-c \"{self.DEFAULT_COMMAND.format(repository=repository, repository_dir=repository.split('/')[-1])}\""
+        #     if command is None
+        #     else f"-c \"{command.format(repository=repository, repository_dir=repository.split('/')[-1])}\""
+        # )
         self.error_message = error_message or self.DEFAULT_ERROR
         self.container_start_timeout = container_start_timeout
         self.bash_timeout = bash_timeout
@@ -65,19 +63,30 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         self.pull_image()
         self.container = self.start_container()
 
-        # Only the initial start-up command is run in bash through the entrypoint specified, thus we need to also
-        # prepend it again here. Same as in the actual tool call.
+        self.__clone_repository_and_change_working_dir_to_it()
+
+        # NOTE: This is only relevant if repository_workdir is True
         err_code, output = self.container.exec_run("/bin/bash -c pwd")
         if err_code == 0:
             self.workdir = output.decode("utf-8").strip()
         else:
             raise ValueError("Can't determine working directory.")
 
+        try:
+            self.setup_iteratively_chunk_commits_into_cohesive_units()
+        except RuntimeError as e:
+            logging.error(e, exc_info=True)
+
     def __enter__(self):
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         self.__docker_stop_containers()
+
+    def __clone_repository_and_change_working_dir_to_it(self):
+        # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
+        startup_command = '/bin/bash -c "git clone https://github.com/{repository}.git"'
+        self.container.exec_run(startup_command.format(repository=self.repository))
 
     def __docker_stop_containers(self):
         logging.info(self.container.logs())
@@ -97,20 +106,20 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             self.client.images.pull(repository=repository, tag=tag)
 
     def start_container(self) -> Container:
-        # Creates a container with the specified image and environment variables. Also primes the container to run
-        # self.command on start-up with the command line tool specified in 'entrypoint'.
+        # Creates a container with the specified image and environment variables. Runs entrypoint on startup.
+        # This specified script is a way with minimal overhead to keep the container alive, which allows us
+        # to continuously execute terminal commands provided by the agent.
         container = self.client.containers.create(
-            image=self.image, command=self.command, environment=self.env_vars, detach=True, entrypoint="/bin/bash"
+            image=self.image, environment=self.env_vars, detach=True, entrypoint="tail -f /dev/null"
         )
         if container.status == "created":
-            # Now the command is executed
+            # Now the command specified in entrypoint is executed
             container.start()
 
         start_time = time.time()
         while time.time() - start_time < self.container_start_timeout:
             container.reload()
             if container.status == "running":
-                # Note that it is not guaranteed that the start-up command has already concluded at this point.
                 logging.info(f"Container for {self.repository} started successfully")
                 return container
             elif container.status == "exited":
@@ -121,6 +130,25 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
 
         logging.error(f"Container for {self.repository} failed to start within the timeout period")
         raise RuntimeError("Could not start container.")
+
+    def setup_iteratively_chunk_commits_into_cohesive_units(self):
+        # TODO: This function should be in a parent that delegates to an implementation that is specific to each type of supported scenario.
+        # Somehow I need to specify which type of scenario to run. For now I will just implement iterative
+        # chunk committing.
+        checkout_command = f"git checkout {self.scenario['first_commit']}"
+        command = '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=checkout_command)
+        err_code, output = self.container.exec_run(command, privileged=False, workdir=self.workdir + '/' + self.repository.split("/")[-1])
+        if err_code == 0:
+            reset_command = f"git checkout {self.scenario['last_commit']} -- {self.scenario['file']}"
+            command = '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=reset_command)
+            err_code, output = self.container.exec_run(command, privileged=False, workdir=self.workdir + '/' + self.repository.split("/")[-1])
+            if err_code == 0:
+                return True
+            else:
+                raise RuntimeError(f"Cannot check out commit: {self.scenario['last_commit']} and soft reset changes in"
+                                   f"{self.scenario['file']}.")
+        else:
+            raise RuntimeError(f"Cannot check out commit: {self.scenario['first_commit']}.")
 
     @tool_implementation()
     def execute_bash_command(
