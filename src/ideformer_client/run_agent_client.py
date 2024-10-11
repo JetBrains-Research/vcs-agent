@@ -27,7 +27,7 @@ async def main():
         client = IdeFormerClient(
             ideformer_host="cloud-ideformer.labs.jb.gg",
             ideformer_port=80,
-            grazie_jwt_token="",
+            grazie_jwt_token=os.environ["IDEFORMER_JWT_TOKEN"],
             client_auth_type=AuthType.APPLICATION,
             client_auth_version=AuthVersion.V5,
             client_agent_name="vcs-agent",  # can be any
