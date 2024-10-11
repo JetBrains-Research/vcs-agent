@@ -20,8 +20,14 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
     # TODO: At this point we already know the first scenario, so it does make sense to include a revision to check out too
     #   However I kinda just want to pull SOME repo, so I will leave this out for now.
     #   For testing I will just hardcode some repo and scenario so that I can develop this further without needing YSON
-    DEFAULT_COMMAND: str = ("apt-get update && apt-get install -y git && git clone https://github.com/{repository}.git "
-                            "&& cd {repository_dir} && git status && pwd && while true; do sleep 1000; done")
+    # The image we are using is built on Python 3.10 and includes git, so no need to install it here.
+    DEFAULT_COMMAND: str = (# Set up the repository and validate that the setup worked. Use HTTPS to clone.
+                            "git clone https://github.com/{repository}.git {repository_dir} && "
+                            "cd {repository_dir} && git status &&"
+                            # Ensure that the container does not exit immediately after finishing the setup. 
+                            # Give some time to specify the agents task and start it up.
+                            "while true; do sleep 1000; done")
+
     DEFAULT_ERROR: str = "ERROR: Could not execute given command."
 
     def __init__(
@@ -65,7 +71,11 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         else:
             raise ValueError("Can't determine working directory.")
 
-        finalize(self, self.__docker_stop_containers)
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.__docker_stop_containers()
 
     def __docker_stop_containers(self):
         logging.info(self.container.logs())
