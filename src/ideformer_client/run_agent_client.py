@@ -1,4 +1,5 @@
 import asyncio
+import os
 import logging
 from textwrap import dedent
 
@@ -63,4 +64,4 @@ async def main():
         await runner.arun()
 
 if __name__ == '__main__':
-    main()
+    asyncio.run(main())
