@@ -6,6 +6,7 @@ from typing import List, Dict
 import yt.wrapper as yt
 from yt.wrapper.schema import TableSchema
 
+from src.ideformer_client.scenario_type import ScenarioType
 from src.yt_scripts.schemas import RepositoryDataRow
 
 def get_scenario_at(scenario_index: int, scenarios: List) -> Dict:
@@ -29,13 +30,12 @@ def get_scenario_at(scenario_index: int, scenarios: List) -> Dict:
     return scenarios[scenario_index]
 
 
-def unpack_scenario_for(scenario_type: str, repository: RepositoryDataRow, scenario_index: int = None) -> Dict:
+def unpack_scenario_for(scenario_type: ScenarioType, repository: RepositoryDataRow, scenario_index: int = None) -> Dict:
     """
     Unpacks a specific scenario for a given scenario type from a repository.
 
     Parameters:
-    - scenario_type (str): The type of scenario to unpack, must match the column name of the scenario type. Valid values:
-        "file_commit_gram_scenarios", "merge_scenarios", "cherry_pick_scenarios".
+    - scenario_type (ScenarioType): The type of scenario to unpack, must match the column name of the scenario type.
     - repository (RepositoryDataRow): The repository containing the scenarios.
     - scenario_index (int, optional): The index of the scenario to unpack. Defaults to None. If not passed, the first
         scenario is processed.
@@ -54,21 +54,24 @@ def unpack_scenario_for(scenario_type: str, repository: RepositoryDataRow, scena
         print('No index passed, returning the first scenario (index=0).', file=sys.stderr)
         scenario_index = 0
 
-    if scenario_type == 'file_commit_gram_scenarios':
+    # Since there are two different setups based on the file_commit_gram_scenarios we need to cover both here
+    # See the enum class and the scenario precondition setup in the TerminalAccessToolProvider
+    if 'file_commit_gram_scenarios' in scenario_type.value:
         if repository.file_commit_gram_scenarios is None:
             print(f'No scenario of type: {scenario_type} available for repository: {repository.name}. Returning None.', file=sys.stderr)
             return {}
         else:
             scenarios = ast.literal_eval(repository.file_commit_gram_scenarios)
             return get_scenario_at(scenario_index, scenarios)
-    elif scenario_type == 'merge_scenarios':
+    elif scenario_type is ScenarioType.MERGE:
         if repository.merge_scenarios is None:
             print(f'No scenario of type: {scenario_type} available for repository: {repository.name}. Returning None.', file=sys.stderr)
             return {}
         else:
             scenarios = ast.literal_eval(repository.merge_scenarios)
+            # TODO: It is quite inefficient to parse all scenarios just to return only a single one
             return get_scenario_at(scenario_index, scenarios)
-    elif scenario_type == 'cherry_pick_scenarios':
+    elif scenario_type is ScenarioType.CHERRY_PICK:
         if repository.cherry_pick_scenarios is None:
             print(f'No scenario of type: {scenario_type} available for repository: {repository.name}. Returning empty dict.', file=sys.stderr)
             return {}
@@ -80,8 +83,6 @@ def unpack_scenario_for(scenario_type: str, repository: RepositoryDataRow, scena
 
 
 def main():
-    yt_client = yt.YtClient(proxy=os.environ["YT_PROXY"], token=os.environ["YT_TOKEN"])
-
     # Create input table
     dataset_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
     dataset_table_path = yt.TablePath(
@@ -91,7 +92,7 @@ def main():
 
     response = yt.read_table_structured(table=dataset_table_path, row_type=RepositoryDataRow)
 
-    x = unpack_scenario_for('cherry_pick_scenarios', next(iter(response)), 1)
+    x = unpack_scenario_for(ScenarioType.FILE_COMMIT_GRAM_CHUNK, next(iter(response)), 1)
     print(x)
 
 
