@@ -70,7 +70,14 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             raise ValueError("Can't determine working directory.")
 
         try:
-            self.setup_iteratively_chunk_commits_into_cohesive_units()
+            err_code, output = self.setup_scenario_preconditions()
+
+            if err_code == 0:
+                logging.info(f"Successfully set up pre-conditions for the first file-commit gram scenario"
+                             f"for file {self.scenario['file']}")
+                logging.info(f'Repository state after setup: {output.decode("utf-8")}')
+            else:
+                raise RuntimeError('Could not set up scenario pre-conditions. Aborting.')
         except RuntimeError as e:
             logging.error(e, exc_info=True)
 
@@ -128,19 +135,27 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         logging.error(f"Container for {self.repository} failed to start within the timeout period")
         raise RuntimeError("Could not start container.")
 
-    def setup_iteratively_chunk_commits_into_cohesive_units(self):
-        # TODO: This function should be in a parent that delegates to an implementation that is specific to each type of supported scenario.
-        # Somehow I need to specify which type of scenario to run. For now I will just implement iterative
-        # chunk committing.
+    def setup_scenario_preconditions(self):
+        if self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
+            self.setup_iteratively_chunk_staged_diff_into_commits()
+        else:
+            raise NotImplementedError(f'Currently only supporting ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_CHUNK.name}')
+
+
+    def setup_iteratively_chunk_staged_diff_into_commits(self):
+        command = '/bin/bash -c "{command_to_execute}"'
+
         checkout_command = f"git checkout {self.scenario['first_commit']}"
-        command = '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=checkout_command)
-        err_code, output = self.container.exec_run(command, privileged=False, workdir=self.workdir + '/' + self.repository.split("/")[-1])
+        err_code, output = self.container.exec_run(command.format(command_to_execute=checkout_command), privileged=False, workdir=self.workdir)
         if err_code == 0:
+            # Reset only the changes made to the file concerning the scenario such that they are staged
             reset_command = f"git checkout {self.scenario['last_commit']} -- {self.scenario['file']}"
-            command = '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=reset_command)
-            err_code, output = self.container.exec_run(command, privileged=False, workdir=self.workdir + '/' + self.repository.split("/")[-1])
+            err_code, output = self.container.exec_run(command.format(command_to_execute=reset_command), privileged=False, workdir=self.workdir)
             if err_code == 0:
-                return True
+                return self.container.exec_run(
+                    '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'), privileged=False,
+                    workdir=self.workdir)
+
             else:
                 raise RuntimeError(f"Cannot check out commit: {self.scenario['last_commit']} and soft reset changes in"
                                    f"{self.scenario['file']}.")
