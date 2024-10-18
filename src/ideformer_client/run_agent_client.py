@@ -9,6 +9,7 @@ from grazie.common.core.log import setup_logging
 from ideformer.client.agents.simple_grazie_chat_runner import IdeFormerSimpleGrazieChatRunner
 from ideformer.client.client import IdeFormerClient
 
+from src.ideformer_client.context.docker_manager import DockerManager
 from src.ideformer_client.data.git_dataset_provider import GitDatasetProvider
 from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
 from src.ideformer_client.scenario_type import ScenarioType
@@ -22,6 +23,17 @@ async def main():
     response = yt_connection_manager.get_dataset_stream()
     git_dataset_provider = GitDatasetProvider(response)
 
+    i = 0
+
+    docker_manager = DockerManager(
+        image='tolindenba/ytsaurus:python-3.10',
+        env_vars={},
+        container_start_timeout=300,
+    )
+    docker_manager.setup_image()
+    docker_manager.create_container()
+    container = docker_manager.start_container()
+
     for repository in git_dataset_provider.stream_repositories():
         scenario_type: ScenarioType = ScenarioType.FILE_COMMIT_GRAM_REBASE
 
@@ -31,10 +43,8 @@ async def main():
             repository=repository,
             scenario_type=scenario_type,
             scenario=scenarios[-2],
-            image='tolindenba/ytsaurus:python-3.10',
+            container=container,
             error_message=None,
-            env_vars={},
-            container_start_timeout=300,
             max_num_chars_bash_output=60000,
             bash_timeout=180,
         )
@@ -79,13 +89,18 @@ async def main():
             user_prompt=user_prompt_rebase,
             client=client,
             tools_implementation_provider=tool,
-            profile=Profile.OPENAI_GPT_4_O.name,
+            profile=Profile.OPENAI_GPT_4_O_MINI.name,
             max_tokens_to_sample=256,
             temperature=1.0,
-            max_agent_iterations=2,
+            max_agent_iterations=1,
         )
 
         await runner.arun()
+        i += 1
+        if i > 0:
+            break
+
+    docker_manager.stop_and_remove_container()
 
 if __name__ == '__main__':
     asyncio.run(main())

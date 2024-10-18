@@ -1,11 +1,7 @@
 import logging
-import time
 from typing import Optional, Dict
-from weakref import finalize
 
-import docker  # type: ignore[import-untyped]
-from docker.errors import APIError, ImageNotFound  # type: ignore[import-untyped]
-from docker.models.containers import Container  # type: ignore[import-untyped]
+from docker.models.containers import Container
 
 from ideformer.client.tools.langchain.implementation import (
     ToolImplementationProvider,
@@ -30,10 +26,8 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             repository: RepositoryDataRow,
             scenario_type: ScenarioType,
             scenario: Dict,
-            image: str,
+            container: Container,
             error_message: Optional[str],
-            env_vars: Dict[str, str],
-            container_start_timeout: int,
             bash_timeout: Optional[int],
             max_num_chars_bash_output: Optional[int],
             tools_list_endpoint="__tools_list__",
@@ -43,21 +37,15 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         logging.basicConfig(level=logging.INFO)
         self.repository_name = repository.name
         self.repository = repository
-        self.image = image
-        self.env_vars = env_vars
         self.error_message = error_message or self.DEFAULT_ERROR
-        self.container_start_timeout = container_start_timeout
         self.bash_timeout = bash_timeout
         self.max_num_chars_bash_output = max_num_chars_bash_output
         self.scenario_type = scenario_type
+        self.container = container
 
         # Unpack and setup scenario
         # TODO: Pretty sure I dont want the tool provider to handle this. Especially the indices of the scenario etc
         self.scenario = scenario
-
-        self.client = docker.from_env()
-        self.pull_image()
-        self.container = self.start_container()
 
         self._clone_repository()
 
@@ -75,8 +63,6 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         except ScenarioPreconditionSetupException as e:
             logging.error(e, exc_info=True)
 
-        finalize(self, self._stop_and_remove_container)
-
     def _clone_repository(self):
         # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
         startup_command = '/bin/bash -c "git clone https://github.com/{repository}.git"'
@@ -86,48 +72,6 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         if err_code != 0:
             output = f"{self.error_message}\n{output}"
         logging.info(output)
-
-    def _stop_and_remove_container(self):
-        if self.container.status == "running":
-            self.container.stop()
-        self.container.remove()
-
-    def pull_image(self):
-        try:
-            self.client.images.get(self.image)
-            logging.info(f'Found {self.image} locally and using that version of it.')
-        except (ImageNotFound, APIError):
-            logging.info(f'Found {self.image} not found locally. Attempting to pull from docker hub.')
-            repository, tag = self.image, None
-            if ":" in repository:
-                repository, tag = repository.split(":")
-            self.client.images.pull(repository=repository, tag=tag)
-
-    def start_container(self) -> Container:
-        # Creates a container with the specified image and environment variables. Runs entrypoint on startup.
-        # This specified script is a way with minimal overhead to keep the container alive, which allows us
-        # to continuously execute terminal commands provided by the agent.
-        container = self.client.containers.create(
-            image=self.image, environment=self.env_vars, detach=True, entrypoint="tail -f /dev/null"
-        )
-        if container.status == "created":
-            # Now the command specified in entrypoint is executed
-            container.start()
-
-        start_time = time.time()
-        while time.time() - start_time < self.container_start_timeout:
-            container.reload()
-            if container.status == "running":
-                logging.info(f"Container for {self.repository_name} started successfully")
-                return container
-            elif container.status == "exited":
-                logging.error(f"Container for {self.repository_name} exited on start.")
-                logging.error(f"Container logs: {container.logs()}")
-                raise RuntimeError("Could not start container.")
-            time.sleep(0.1)
-
-        logging.error(f"Container for {self.repository_name} failed to start within the timeout period")
-        raise RuntimeError("Could not start container.")
 
     def setup_scenario_preconditions(self):
         if self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
