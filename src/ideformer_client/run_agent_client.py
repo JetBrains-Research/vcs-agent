@@ -11,6 +11,14 @@ from ideformer.client.client import IdeFormerClient
 
 from src.ideformer_client.terminal_access_tool_Provider import TerminalAccessToolImplementationProvider
 
+from yt.wrapper.schema import TableSchema
+import yt.wrapper as yt
+
+from src.yt_scripts.get_datapoint_from_dataset import unpack_scenario_for
+from src.yt_scripts.schemas import RepositoryDataRow
+from src.ideformer_client.scenario_type import ScenarioType
+
+
 async def main():
     setup_logging(log_to_stderr=False, level=logging.INFO)
 
@@ -18,6 +26,18 @@ async def main():
         repository='Qiskit/qiskit-serverless',
         image='liqsdev/ytsaurus:python-3.10',
         command=None,
+    scenario_type: ScenarioType = ScenarioType.FILE_COMMIT_GRAM_CHUNK
+
+    # Create input table
+    dataset_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
+    dataset_table_path = yt.TablePath(
+        dataset_table,
+        schema=TableSchema.from_row_type(RepositoryDataRow)
+    )
+
+    # TODO: Parse into a list of dicts or something that has good lookup speed wrt the repo_name
+    response = yt.read_table_structured(table=dataset_table_path, row_type=RepositoryDataRow)
+    sample = next(iter(response))
         error_message=None,
         env_vars={},
         repository_workdir=False,
