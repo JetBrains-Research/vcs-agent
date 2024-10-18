@@ -41,25 +41,19 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         super().__init__(tools_list_endpoint=tools_list_endpoint)
 
         logging.basicConfig(level=logging.INFO)
-
+        self.repository_name = repository.name
         self.repository = repository
-        self.scenario = scenario
         self.image = image
         self.env_vars = env_vars
-        self.repository_workdir = repository_workdir
-
-        # The initial command is executed in self.start_container(). In the creation command the entrypoint specifies
-        # to which command line tool the command is passed. Thus the command should be a well-defined bash command,
-        # if we want to run it in bash. Here we prepend '-c' to ensure this.
-        # self.command = (
-        #     f"-c \"{self.DEFAULT_COMMAND.format(repository=repository, repository_dir=repository.split('/')[-1])}\""
-        #     if command is None
-        #     else f"-c \"{command.format(repository=repository, repository_dir=repository.split('/')[-1])}\""
-        # )
         self.error_message = error_message or self.DEFAULT_ERROR
         self.container_start_timeout = container_start_timeout
         self.bash_timeout = bash_timeout
         self.max_num_chars_bash_output = max_num_chars_bash_output
+        self.scenario_type = scenario_type
+
+        # Unpack and setup scenario
+        # TODO: Pretty sure I dont want the tool provider to handle this. Especially the indices of the scenario etc
+        self.scenario = unpack_scenario_for(scenario_type=self.scenario_type, repository=repository, scenario_index=0)
 
         self.client = docker.from_env()
         self.pull_image()
@@ -67,10 +61,11 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
 
         self.__clone_repository_and_change_working_dir_to_it()
 
-        # NOTE: This is only relevant if repository_workdir is True
+        # TODO: Move this into clone repository or its own function, because we must do this every time we cclone
+        # a new repository
         err_code, output = self.container.exec_run("/bin/bash -c pwd")
         if err_code == 0:
-            self.workdir = output.decode("utf-8").strip()
+            self.workdir = output.decode("utf-8").strip() + '/' + self.repository_name.split("/")[-1]
         else:
             raise ValueError("Can't determine working directory.")
 
