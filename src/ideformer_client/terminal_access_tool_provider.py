@@ -71,14 +71,8 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             raise ValueError("Can't determine working directory.")
 
         try:
-            err_code, output = self.setup_scenario_preconditions()
-
-            if err_code == 0:
-                logging.info(f"Successfully set up pre-conditions for the first file-commit gram scenario"
-                             f"for file {self.scenario['file']}")
-                logging.info(f'Repository state after setup: {output.decode("utf-8")}')
-            else:
-                raise RuntimeError('Could not set up scenario pre-conditions. Aborting.')
+            if self.setup_scenario_preconditions():
+                logging.info(f'Setup for ScenarioType.{self.scenario_type.name} successful.')
         except ScenarioPreconditionSetupException as e:
             logging.error(e, exc_info=True)
 
@@ -138,9 +132,12 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
 
     def setup_scenario_preconditions(self):
         if self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
-            self.setup_iteratively_chunk_staged_diff_into_commits()
+            return self.setup_iteratively_chunk_staged_diff_into_commits()
+        elif self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
+            return self.setup_clean_local_branch_before_push()
         else:
-            raise NotImplementedError(f'Currently only supporting ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_CHUNK.name}')
+            raise NotImplementedError(f'Currently only supporting ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_CHUNK.name}'
+                                      f'and ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_REBASE.name}.')
 
 
     def setup_iteratively_chunk_staged_diff_into_commits(self):
@@ -153,10 +150,14 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             reset_command = f"git checkout {self.scenario['last_commit']} -- {self.scenario['file']}"
             err_code, output = self.container.exec_run(command.format(command_to_execute=reset_command), privileged=False, workdir=self.workdir)
             if err_code == 0:
-                return self.container.exec_run(
+                # TODO this could be removed after debugging or passed to the agent in the initial prompt to remove
+                #   a turn that it will use for exploration
+                err_code, output = self.container.exec_run(
                     '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'), privileged=False,
                     workdir=self.workdir)
-
+                if err_code == 0:
+                    logging.info(output.decode('utf-8'))
+                    return True
                 else:
                     raise ScenarioPreconditionSetupException(f"Could not fetch the current status of the git repository."
                                                              f" Docker error code: {err_code}.")
@@ -167,6 +168,29 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         else:
             raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['first_commit']}. Docker "
                                                      f"error code: {err_code}.")
+
+
+    def setup_clean_local_branch_before_push(self):
+        """
+        This should reduce the amount of commits in the local branch. The intuition is that people might just
+        commit some stuff while they are working on it, but the commits might not be maximally cohesive and coherent.
+
+        TODO The length of my chain is incorrect. Let's try and see if the agent can deal with it anyways.
+        Returns:
+
+        """
+        command = '/bin/bash -c "{command_to_execute}"'
+
+        checkout_command = f"git checkout {self.scenario['first_commit']}"
+        err_code, output = self.container.exec_run(command.format(command_to_execute=checkout_command),
+                                                   privileged=False, workdir=self.workdir)
+        if err_code == 0:
+            return True
+        else:
+            raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['first_commit']}. "
+                                                     f"Docker error code: {err_code}.")
+
+
 
     @tool_implementation()
     def execute_bash_command(
