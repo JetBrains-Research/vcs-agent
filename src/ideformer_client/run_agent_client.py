@@ -46,7 +46,7 @@ async def main():
     )
 
     client = IdeFormerClient(
-        ideformer_host=os.environ['IDFORMER_HOST'],
+        ideformer_host=os.environ['IDEFORMER_HOST'],
         ideformer_port=80,
         grazie_jwt_token=os.environ["IDEFORMER_JWT_TOKEN"],
         client_auth_type=AuthType.APPLICATION,
