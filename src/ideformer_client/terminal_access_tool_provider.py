@@ -14,6 +14,10 @@ from ideformer.client.tools.langchain.implementation import (
 )
 from pydantic import Field
 
+from src.ideformer_client.scenario_type import ScenarioType
+from src.yt_scripts.get_datapoint_from_dataset import unpack_scenario_for
+from src.yt_scripts.schemas import RepositoryDataRow
+
 
 class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
     # Setup the initial environment for the agent inside the docker container
@@ -24,13 +28,11 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
 
     def __init__(
             self,
-            repository: str,
-            scenario: dict,
+            repository: RepositoryDataRow,
+            scenario_type: ScenarioType,
             image: str,
-            command: Optional[str],
             error_message: Optional[str],
             env_vars: Dict[str, str],
-            repository_workdir: bool,
             container_start_timeout: int,
             bash_timeout: Optional[int],
             max_num_chars_bash_output: Optional[int],
@@ -77,13 +79,9 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         except RuntimeError as e:
             logging.error(e, exc_info=True)
 
-    def __enter__(self):
-        return self
+        finalize(self, self.__docker_stop_containers)
 
-    def __exit__(self, exc_type, exc_val, exc_tb):
-        self.__docker_stop_containers()
-
-    def __clone_repository_and_change_working_dir_to_it(self):
+    def __clone_repository(self):
         # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
         startup_command = '/bin/bash -c "git clone https://github.com/{repository}.git"'
         self.container.exec_run(startup_command.format(repository=self.repository))
