@@ -59,7 +59,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         self.pull_image()
         self.container = self.start_container()
 
-        self.__clone_repository_and_change_working_dir_to_it()
+        self.__clone_repository()
 
         # TODO: Move this into clone repository or its own function, because we must do this every time we cclone
         # a new repository
@@ -79,10 +79,14 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
     def __clone_repository(self):
         # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
         startup_command = '/bin/bash -c "git clone https://github.com/{repository}.git"'
-        self.container.exec_run(startup_command.format(repository=self.repository))
+        err_code, output = self.container.exec_run(startup_command.format(repository=self.repository_name))
+
+        output = output.decode("utf-8")
+        if err_code != 0:
+            output = f"{self.error_message}\n{output}"
+        logging.info(output)
 
     def __docker_stop_containers(self):
-        logging.info(self.container.logs())
         if self.container.status == "running":
             self.container.stop()
         self.container.remove()
