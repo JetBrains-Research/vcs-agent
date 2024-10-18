@@ -14,7 +14,6 @@ from src.ideformer_client.terminal_access_tool_provider import TerminalAccessToo
 from yt.wrapper.schema import TableSchema
 import yt.wrapper as yt
 
-from src.yt_scripts.get_datapoint_from_dataset import unpack_scenario_for
 from src.yt_scripts.schemas import RepositoryDataRow
 from src.ideformer_client.scenario_type import ScenarioType
 
@@ -47,7 +46,7 @@ async def main():
     )
 
     client = IdeFormerClient(
-        ideformer_host="cloud-ideformer.labs.jb.gg",
+        ideformer_host=os.environ['IDFORMER_HOST'],
         ideformer_port=80,
         grazie_jwt_token=os.environ["IDEFORMER_JWT_TOKEN"],
         client_auth_type=AuthType.APPLICATION,
