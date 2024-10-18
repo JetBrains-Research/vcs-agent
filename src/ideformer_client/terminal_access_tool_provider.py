@@ -124,15 +124,15 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         while time.time() - start_time < self.container_start_timeout:
             container.reload()
             if container.status == "running":
-                logging.info(f"Container for {self.repository} started successfully")
+                logging.info(f"Container for {self.repository_name} started successfully")
                 return container
             elif container.status == "exited":
-                logging.error(f"Container for {self.repository} exited on start.")
+                logging.error(f"Container for {self.repository_name} exited on start.")
                 logging.error(f"Container logs: {container.logs()}")
                 raise RuntimeError("Could not start container.")
             time.sleep(0.1)
 
-        logging.error(f"Container for {self.repository} failed to start within the timeout period")
+        logging.error(f"Container for {self.repository_name} failed to start within the timeout period")
         raise RuntimeError("Could not start container.")
 
     def setup_scenario_preconditions(self):
