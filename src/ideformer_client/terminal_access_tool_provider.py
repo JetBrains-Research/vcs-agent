@@ -187,12 +187,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             if 'sudo' in command or '-rf' in command:
                 raise PermissionError(f'Prohibited string "sudo" or "-rf" found in {command}.')
 
-            if self.repository_workdir:
-                err_code, output = self.container.exec_run(
-                    command, workdir=self.workdir + '/' + self.repository.split("/")[-1], privileged=False,
-                )
-            else:
-                err_code, output = self.container.exec_run(command, privileged=False)
+            err_code, output = self.container.exec_run(command, workdir=self.workdir, privileged=False,)
             output = output.decode("utf-8")
             if err_code != 0:
                 output = f"{self.error_message}\n{output}"
