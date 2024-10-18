@@ -66,14 +66,22 @@ async def main():
         - YOU MUST USE THE PROVIDED TOOLS TO ACTUALLY CHANGE THE FILE SYSTEM.
         """)
 
-    user_prompt = ('In the staging area of the git repository within the current directory you will find a file'
+    user_prompt_chunking = ('In the staging area of the git repository within the current directory you will find a file'
                    'with some staged changes. I want you to iteratively commit these changes as logically coherent'
                    'and cohesive as possible. Base your decisions on Clean Code principles, design patterns and system design '
                    'and act as a staff senior software engineer would. Create these commits in the "demo" branch and show'
                    'me the git log of only the branch and commits you created.')
+    user_prompt_rebase = ('Clean up the commit history of the current Git branch. Focus on the last n commits, '
+                          'starting from the current state up to the commit "68e876ee". Rebase interactively to reduce the '
+                          'total number of commits to k, where k<n. Squash or regroup related commits, ensuring each '
+                          'remaining commit represents a distinct, logical change. Eliminate redundant or trivial commits'
+                          ' where possible, and ensure commit messages are clear and meaningful. After the rebase, '
+                          'verify that the resulting commit history is concise, readable, and free of conflicts.'
+                          'Use the exact commits specified and pay attention to use the correct hashes.'
+                          )
     runner = IdeFormerSimpleGrazieChatRunner(
         system_prompt=system_prompt,
-        user_prompt=user_prompt,
+        user_prompt=user_prompt_rebase,
         client=client,
         tools_implementation_provider=tool,
         profile=Profile.OPENAI_GPT_4_O.name,
