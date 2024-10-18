@@ -1,21 +1,15 @@
 import asyncio
-import os
 import logging
+import os
 from textwrap import dedent
 
-from grazie.api.client.profiles import Profile
 from grazie.cloud_tools_v2.authorization import AuthType, AuthVersion
 from grazie.common.core.log import setup_logging
-from ideformer.client.agents.simple_grazie_chat_runner import IdeFormerSimpleGrazieChatRunner
 from ideformer.client.client import IdeFormerClient
 
-from src.ideformer_client.terminal_access_tool_provider import TerminalAccessToolImplementationProvider
-
-from yt.wrapper.schema import TableSchema
-import yt.wrapper as yt
-
-from src.yt_scripts.schemas import RepositoryDataRow
+from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
 from src.ideformer_client.scenario_type import ScenarioType
+from src.ideformer_client.terminal_access_tool_provider import TerminalAccessToolImplementationProvider
 
 
 async def main():
@@ -23,15 +17,8 @@ async def main():
 
     scenario_type: ScenarioType = ScenarioType.FILE_COMMIT_GRAM_CHUNK
 
-    # Create input table
-    dataset_table = "//home/ml4se/tobias_lindenbauer/data/scraper_output"
-    dataset_table_path = yt.TablePath(
-        dataset_table,
-        schema=TableSchema.from_row_type(RepositoryDataRow)
-    )
-
-    # TODO: Parse into a list of dicts or something that has good lookup speed wrt the repo_name
-    response = yt.read_table_structured(table=dataset_table_path, row_type=RepositoryDataRow)
+    yt_connection_manager = YTConnectionManager(dataset_table_location=os.environ['YT_DATASET_TABLE_LOCATION'])
+    response = yt_connection_manager.get_dataset_stream()
     sample = next(iter(response))
 
     tool = TerminalAccessToolImplementationProvider(
