@@ -14,6 +14,7 @@ from ideformer.client.tools.langchain.implementation import (
 )
 from pydantic import Field
 
+from src.ideformer_client.exceptions import ScenarioPreconditionSetupException
 from src.ideformer_client.scenario_type import ScenarioType
 from src.yt_scripts.get_datapoint_from_dataset import unpack_scenario_for
 from src.yt_scripts.schemas import RepositoryDataRow
@@ -78,7 +79,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
                 logging.info(f'Repository state after setup: {output.decode("utf-8")}')
             else:
                 raise RuntimeError('Could not set up scenario pre-conditions. Aborting.')
-        except RuntimeError as e:
+        except ScenarioPreconditionSetupException as e:
             logging.error(e, exc_info=True)
 
         finalize(self, self.__docker_stop_containers)
@@ -156,11 +157,16 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
                     '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'), privileged=False,
                     workdir=self.workdir)
 
+                else:
+                    raise ScenarioPreconditionSetupException(f"Could not fetch the current status of the git repository."
+                                                             f" Docker error code: {err_code}.")
             else:
-                raise RuntimeError(f"Cannot check out commit: {self.scenario['last_commit']} and soft reset changes in"
-                                   f"{self.scenario['file']}.")
+                raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['last_commit']} and "
+                                                         f"soft reset changes in {self.scenario['file']}. Docker error "
+                                                         f"code: {err_code}.")
         else:
-            raise RuntimeError(f"Cannot check out commit: {self.scenario['first_commit']}.")
+            raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['first_commit']}. Docker "
+                                                     f"error code: {err_code}.")
 
     @tool_implementation()
     def execute_bash_command(
