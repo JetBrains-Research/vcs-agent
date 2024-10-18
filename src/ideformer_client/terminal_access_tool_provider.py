@@ -1,5 +1,4 @@
 import logging
-import os
 import time
 from typing import Optional, Dict
 from weakref import finalize
@@ -16,7 +15,6 @@ from pydantic import Field
 
 from src.ideformer_client.exceptions import ScenarioPreconditionSetupException
 from src.ideformer_client.scenario_type import ScenarioType
-from src.yt_scripts.get_datapoint_from_dataset import unpack_scenario_for
 from src.yt_scripts.schemas import RepositoryDataRow
 
 
@@ -31,6 +29,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             self,
             repository: RepositoryDataRow,
             scenario_type: ScenarioType,
+            scenario: Dict,
             image: str,
             error_message: Optional[str],
             env_vars: Dict[str, str],
@@ -54,7 +53,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
 
         # Unpack and setup scenario
         # TODO: Pretty sure I dont want the tool provider to handle this. Especially the indices of the scenario etc
-        self.scenario = unpack_scenario_for(scenario_type=self.scenario_type, repository=repository, scenario_index=0)
+        self.scenario = scenario
 
         self.client = docker.from_env()
         self.pull_image()
