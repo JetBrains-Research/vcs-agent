@@ -60,7 +60,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         self.pull_image()
         self.container = self.start_container()
 
-        self.__clone_repository()
+        self._clone_repository()
 
         # TODO: Move this into clone repository or its own function, because we must do this every time we cclone
         # a new repository
@@ -76,9 +76,9 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
         except ScenarioPreconditionSetupException as e:
             logging.error(e, exc_info=True)
 
-        finalize(self, self.__docker_stop_containers)
+        finalize(self, self._stop_and_remove_container)
 
-    def __clone_repository(self):
+    def _clone_repository(self):
         # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
         startup_command = '/bin/bash -c "git clone https://github.com/{repository}.git"'
         err_code, output = self.container.exec_run(startup_command.format(repository=self.repository_name))
@@ -88,7 +88,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             output = f"{self.error_message}\n{output}"
         logging.info(output)
 
-    def __docker_stop_containers(self):
+    def _stop_and_remove_container(self):
         if self.container.status == "running":
             self.container.stop()
         self.container.remove()
