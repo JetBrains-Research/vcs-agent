@@ -11,10 +11,6 @@ from pydantic import Field
 
 
 class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
-    # Setup the initial environment for the agent inside the docker container
-    # TODO: At this point we already know the first scenario, so it does make sense to include a revision to check out too
-    #   However I kinda just want to pull SOME repo, so I will leave this out for now.
-    #   For testing I will just hardcode some repo and scenario so that I can develop this further without needing YSON
     DEFAULT_ERROR: str = "ERROR: Could not execute given command."
 
     def __init__(
@@ -28,7 +24,6 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
     ):
         super().__init__(tools_list_endpoint=tools_list_endpoint)
 
-        logging.basicConfig(level=logging.INFO)
         self.error_message = error_message or self.DEFAULT_ERROR
         self.bash_timeout = bash_timeout
         self.max_num_chars_bash_output = max_num_chars_bash_output
