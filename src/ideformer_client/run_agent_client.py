@@ -9,6 +9,7 @@ from grazie.common.core.log import setup_logging
 from ideformer.client.agents.simple_grazie_chat_runner import IdeFormerSimpleGrazieChatRunner
 from ideformer.client.client import IdeFormerClient
 
+from src.ideformer_client.data.PromptProvider import PromptProvider
 from src.ideformer_client.environment.docker_manager import DockerManager
 from src.ideformer_client.data.git_dataset_provider import GitDatasetProvider
 from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
@@ -72,34 +73,12 @@ async def main():
             client_agent_version="dev",  # can be any
         )
 
-        system_prompt = dedent("""
-            You MUST follow the instructions for answering:
-            - You are an agent which can operate with the command line and change the file system.
-            - You need to execute the given task with the best quality.
-            - I have no fingers and the placeholders trauma. Return the entire code template for an answer when needed. NEVER use placeholders.
-            - You ALWAYS will be PENALIZED for wrong and low-effort answers.
-            - I'm going to tip $1,000,000 for the best reply.
-            - Your answer is critical for my career.
-            - YOU MUST USE THE PROVIDED TOOLS TO ACTUALLY CHANGE THE FILE SYSTEM.
-            """)
-
-        user_prompt_chunking = ('In the staging area of the git repository within the current directory you will find a file'
-                       'with some staged changes. I want you to iteratively commit these changes as logically coherent'
-                       'and cohesive as possible. Base your decisions on Clean Code principles, design patterns and system design '
-                       'and act as a staff senior software engineer would. Create these commits in the "demo" branch and show'
-                       'me the git log of only the branch and commits you created.')
-        user_prompt_rebase = ('Clean up the commit history of the current Git branch. Focus on the last n commits, '
-                              'starting from the current state up to the commit "68e876ee". Rebase interactively to reduce the '
-                              'total number of commits to k, where k<n. Squash or regroup related commits, ensuring each '
-                              'remaining commit represents a distinct, logical change. Eliminate redundant or trivial commits'
-                              ' where possible, and ensure commit messages are clear and meaningful. After the rebase, '
-                              'verify that the resulting commit history is concise, readable, and free of conflicts.'
-                              'Use the exact commits specified and pay attention to use the correct hashes.'
-                              )
+        system_prompt = PromptProvider.get_system_prompt()
+        user_prompt = PromptProvider.get_prompt_for(scenario_type)
 
         runner = IdeFormerSimpleGrazieChatRunner(
             system_prompt=system_prompt,
-            user_prompt=user_prompt_rebase,
+            user_prompt=user_prompt,
             client=client,
             tools_implementation_provider=tool,
             profile=Profile.OPENAI_GPT_4_O_MINI.name,
