@@ -1,5 +1,2 @@
-class ScenarioPreconditionSetupException(Exception):
-    pass
-
-class ScenarioTeardownException(Exception):
+class ScenarioEnvironmentException(Exception):
     pass

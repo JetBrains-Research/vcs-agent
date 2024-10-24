@@ -1,4 +1,5 @@
 from textwrap import dedent
+from typing import Optional
 
 from src.ideformer_client.scenario_type import ScenarioType
 
@@ -9,7 +10,10 @@ class PromptProvider:
                        'with some staged changes. I want you to iteratively commit these changes as logically coherent'
                        'and cohesive as possible. Base your decisions on Clean Code principles, design patterns and system design '
                        'and act as a staff senior software engineer would. Create these commits in the "demo" branch and show'
-                       'me the git log of only the branch and commits you created.')
+                       'me the git log of only the branch and commits you created.'
+                        ''
+                        'Here is some context about the current state of the repository:'
+                        '{context}')
 
     _USER_PROMPT_REBASE = ('Clean up the commit history of the current Git branch. Focus on the last n commits, '
                               'starting from the current state up to the commit "68e876ee". Rebase interactively to reduce the '
@@ -18,7 +22,9 @@ class PromptProvider:
                               ' where possible, and ensure commit messages are clear and meaningful. After the rebase, '
                               'verify that the resulting commit history is concise, readable, and free of conflicts.'
                               'Use the exact commits specified and pay attention to use the correct hashes.'
-                              )
+                           ''
+                           'Here is some context about the current state of the repository:'
+                           '{context}')
 
     _SYSTEM_PROMPT = dedent("""
                 You MUST follow the instructions for answering:
@@ -36,10 +42,12 @@ class PromptProvider:
         return cls._SYSTEM_PROMPT
 
     @classmethod
-    def get_prompt_for(cls, scenario_type: ScenarioType):
+    def get_prompt_for(cls, scenario_type: ScenarioType, context: Optional[str]):
         """
         Args:
             scenario_type (ScenarioType): The type of scenario to get the prompt for.
+            context (Optional[str]): Additional context for the model to orient itself in the repository. E.g.: git status,
+                truncated git log etc.
 
         Raises:
             ValueError if called by an invalid scenario type.
@@ -49,9 +57,9 @@ class PromptProvider:
             str: Returns appropriate response for the given scenario type.
         """
         if scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
-            return cls._USER_PROMPT_CHUNK
+            return cls._USER_PROMPT_CHUNK.format(context=context)
         elif scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
-            return cls._USER_PROMPT_REBASE
+            return cls._USER_PROMPT_REBASE.format(context=context)
         elif scenario_type is ScenarioType.MERGE:
             return NotImplementedError
         elif scenario_type is ScenarioType.CHERRY_PICK:
