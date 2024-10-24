@@ -8,7 +8,7 @@ from src.yt_scripts.schemas import RepositoryDataRow
 import sys
 import ast
 
-from typing import Dict, Generator
+from typing import Dict, Generator, Optional
 
 
 class GitDatasetProvider:
@@ -18,13 +18,17 @@ class GitDatasetProvider:
     """
 
     def __init__(self, record_response_stream: ResponseStream):
+        """
+        Args:
+            record_response_stream: Stream containing the response data from YTsaurus.
+        """
         self.dataset_stream = record_response_stream
-        self.current_repository = None
+        self.current_repository: Optional[RepositoryDataRow] = None
 
     def stream_repositories(self) -> Generator[RepositoryDataRow, None, None]:
         """
         Streams repository data rows from the dataset. Before yielding self.current_repository is updated to the
-        current repository.
+        current repository. If current_repository was not passed in the constructor
 
         Returns:
             Generator: A generator for RepositoryDataRow objects.
@@ -48,10 +52,14 @@ class GitDatasetProvider:
 
         Raises:
             ValueError if called with a ScenarioType that is not defined in the ScenarioType enum class.
+                Or if self.current_repository is not initialized (None)
 
         Returns:
             Dict: The scenarios of scenario_type as a dictionary.
         """
+        if self.current_repository is None:
+            raise ValueError('Current repository has not been initialized.')
+
         # Since there are two different setups based on the file_commit_gram_scenarios we need to cover both here
         # See the enum class and the scenario precondition setup in the TerminalAccessToolProvider
         if 'file_commit_gram_scenarios' in scenario_type.value:
