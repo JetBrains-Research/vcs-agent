@@ -9,9 +9,10 @@ from grazie.common.core.log import setup_logging
 from ideformer.client.agents.simple_grazie_chat_runner import IdeFormerSimpleGrazieChatRunner
 from ideformer.client.client import IdeFormerClient
 
-from src.ideformer_client.context.docker_manager import DockerManager
+from src.ideformer_client.environment.docker_manager import DockerManager
 from src.ideformer_client.data.git_dataset_provider import GitDatasetProvider
 from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
+from src.ideformer_client.environment.scenario_environment_manager import ScenarioEnvironmentManager
 from src.ideformer_client.scenario_type import ScenarioType
 from src.ideformer_client.terminal_access_tool_provider import TerminalAccessToolImplementationProvider
 
@@ -39,14 +40,26 @@ async def main():
 
         scenarios = git_dataset_provider.get_scenarios_for(scenario_type=scenario_type)
 
-        tool = TerminalAccessToolImplementationProvider(
+        # Ensure that we actually have > 0 scenarios of scenario_type for the current repository
+        if len(scenarios) == 0:
+            continue
+
+        # Set up the environment
+        scenario_environment_manager = ScenarioEnvironmentManager(
+            container=container,
             repository=repository,
             scenario_type=scenario_type,
-            scenario=scenarios[-2],
+            scenario=scenarios[0],
+        )
+        scenario_environment_manager.clone_repository()
+        scenario_environment_manager.setup_scenario_preconditions()
+
+        tool = TerminalAccessToolImplementationProvider(
             container=container,
             error_message=None,
-            max_num_chars_bash_output=60000,
+            max_num_chars_bash_output=30000,
             bash_timeout=180,
+            workdir=scenario_environment_manager.repository_work_dir
         )
 
         client = IdeFormerClient(

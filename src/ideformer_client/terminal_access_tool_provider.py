@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict
+from typing import Optional
 
 from docker.models.containers import Container
 
@@ -8,10 +8,6 @@ from ideformer.client.tools.langchain.implementation import (
     tool_implementation,
 )
 from pydantic import Field
-
-from src.ideformer_client.exceptions import ScenarioPreconditionSetupException
-from src.ideformer_client.scenario_type import ScenarioType
-from src.yt_scripts.schemas import RepositoryDataRow
 
 
 class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
@@ -23,117 +19,21 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
 
     def __init__(
             self,
-            repository: RepositoryDataRow,
-            scenario_type: ScenarioType,
-            scenario: Dict,
             container: Container,
             error_message: Optional[str],
             bash_timeout: Optional[int],
             max_num_chars_bash_output: Optional[int],
+            workdir: str,
             tools_list_endpoint="__tools_list__",
     ):
         super().__init__(tools_list_endpoint=tools_list_endpoint)
 
         logging.basicConfig(level=logging.INFO)
-        self.repository_name = repository.name
-        self.repository = repository
         self.error_message = error_message or self.DEFAULT_ERROR
         self.bash_timeout = bash_timeout
         self.max_num_chars_bash_output = max_num_chars_bash_output
-        self.scenario_type = scenario_type
         self.container = container
-
-        # Unpack and setup scenario
-        # TODO: Pretty sure I dont want the tool provider to handle this. Especially the indices of the scenario etc
-        self.scenario = scenario
-
-        self._clone_repository()
-
-        # TODO: Move this into clone repository or its own function, because we must do this every time we cclone
-        # a new repository
-        err_code, output = self.container.exec_run("/bin/bash -c pwd")
-        if err_code == 0:
-            self.workdir = output.decode("utf-8").strip() + '/' + self.repository_name.split("/")[-1]
-        else:
-            raise ValueError("Can't determine working directory.")
-
-        try:
-            if self.setup_scenario_preconditions():
-                logging.info(f'Setup for ScenarioType.{self.scenario_type.name} successful.')
-        except ScenarioPreconditionSetupException as e:
-            logging.error(e, exc_info=True)
-
-    def _clone_repository(self):
-        # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
-        startup_command = '/bin/bash -c "git clone https://github.com/{repository}.git"'
-        err_code, output = self.container.exec_run(startup_command.format(repository=self.repository_name))
-
-        output = output.decode("utf-8")
-        if err_code != 0:
-            output = f"{self.error_message}\n{output}"
-        logging.info(output)
-
-    def setup_scenario_preconditions(self):
-        if self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
-            return self.setup_iteratively_chunk_staged_diff_into_commits()
-        elif self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
-            return self.setup_clean_local_branch_before_push()
-        else:
-            raise NotImplementedError(f'Currently only supporting ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_CHUNK.name}'
-                                      f'and ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_REBASE.name}.')
-
-
-    def setup_iteratively_chunk_staged_diff_into_commits(self):
-        command = '/bin/bash -c "{command_to_execute}"'
-
-        checkout_command = f"git checkout {self.scenario['first_commit']}"
-        err_code, output = self.container.exec_run(command.format(command_to_execute=checkout_command), privileged=False, workdir=self.workdir)
-        if err_code == 0:
-            # Reset only the changes made to the file concerning the scenario such that they are staged
-            reset_command = f"git checkout {self.scenario['last_commit']} -- {self.scenario['file']}"
-            err_code, output = self.container.exec_run(command.format(command_to_execute=reset_command), privileged=False, workdir=self.workdir)
-            if err_code == 0:
-                # TODO this could be removed after debugging or passed to the agent in the initial prompt to remove
-                #   a turn that it will use for exploration
-                err_code, output = self.container.exec_run(
-                    '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'), privileged=False,
-                    workdir=self.workdir)
-                if err_code == 0:
-                    logging.info(output.decode('utf-8'))
-                    return True
-                else:
-                    raise ScenarioPreconditionSetupException(f"Could not fetch the current status of the git repository."
-                                                             f" Docker error code: {err_code}.")
-            else:
-                raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['last_commit']} and "
-                                                         f"soft reset changes in {self.scenario['file']}. Docker error "
-                                                         f"code: {err_code}.")
-        else:
-            raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['first_commit']}. Docker "
-                                                     f"error code: {err_code}.")
-
-
-    def setup_clean_local_branch_before_push(self):
-        """
-        This should reduce the amount of commits in the local branch. The intuition is that people might just
-        commit some stuff while they are working on it, but the commits might not be maximally cohesive and coherent.
-
-        TODO The length of my chain is incorrect. Let's try and see if the agent can deal with it anyways.
-        Returns:
-
-        """
-        command = '/bin/bash -c "{command_to_execute}"'
-
-        checkout_command = f"git checkout {self.scenario['first_commit']}"
-        err_code, output = self.container.exec_run(command.format(command_to_execute=checkout_command),
-                                                   privileged=False, workdir=self.workdir)
-        if err_code == 0:
-            return True
-        else:
-            raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['first_commit']}. "
-                                                     f"Docker error code: {err_code}.")
-
-
+        self.workdir = workdir
 
     @tool_implementation()
     def execute_bash_command(
@@ -160,7 +60,7 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             if 'sudo' in command or '-rf' in command:
                 raise PermissionError(f'Prohibited string "sudo" or "-rf" found in {command}.')
 
-            err_code, output = self.container.exec_run(command, workdir=self.workdir, privileged=False,)
+            err_code, output = self.container.exec_run(command, workdir=self.workdir, privileged=False)
             output = output.decode("utf-8")
             if err_code != 0:
                 output = f"{self.error_message}\n{output}"
