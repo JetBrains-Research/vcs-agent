@@ -7,6 +7,7 @@ from src.ideformer_client.scenario_type import ScenarioType
 from src.yt_scripts.schemas import RepositoryDataRow
 
 class ScenarioEnvironmentManager:
+
     def __init__(self,
                  container: Container,
                  repository: RepositoryDataRow,
@@ -22,6 +23,16 @@ class ScenarioEnvironmentManager:
         self._setup_repository_working_directory()
 
     def setup_scenario_preconditions(self):
+        """
+        Sets up the preconditions for different scenario types.
+
+        Depending on the scenario type, this method will either:
+          - Setup iteratively chunk staged diff into commits.
+          - Setup a clean local branch before push.
+
+        Raises:
+            NotImplementedError: If the scenario type is not supported.
+        """
         if self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
             return self._setup_iteratively_chunk_staged_diff_into_commits()
         elif self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
@@ -35,13 +46,24 @@ class ScenarioEnvironmentManager:
         raise NotImplementedError
 
     def clone_repository(self):
+        """
+        Clones the git repository of the current repository into the container.
+
+        The repository URL is formed using the `self.repository_name` attribute.
+        If the clone operation fails (non-zero error code), an error message
+        is logged. Otherwise, the output of the clone operation is logged
+        as an info message.
+
+        Raises:
+            ScenarioPreconditionSetupException if the clone operation fails.
+        """
         # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
         startup_command = '/bin/bash -c "git clone https://github.com/{repository_name}.git"'
         err_code, output = self.container.exec_run(startup_command.format(repository_name=self.repository_name))
 
         output = output.decode("utf-8")
         if err_code != 0:
-            logging.error(f"Could not clone repository.\n{output}")
+            raise ScenarioPreconditionSetupException(f'Could not clone repository.\n{output}')
         logging.info(output)
 
     def teardown_repository(self):
@@ -51,13 +73,36 @@ class ScenarioEnvironmentManager:
         raise NotImplementedError
 
     def _setup_repository_working_directory(self):
+        """
+        Set up the repository working directory inside the container as the current working directory and the repository name.
+
+        This method runs a shell command to get the present working directory inside the container.
+        It appends the repository name (sans any preceding path) to this directory and sets the repository
+        working directory for the instance.
+
+        Raises:
+            ValueError: If the working directory can't be determined.
+        """
         err_code, output = self.container.exec_run("/bin/bash -c pwd")
         if err_code == 0:
             self.repository_work_dir = output.decode("utf-8").strip() + '/' + self.repository_name.split("/")[-1]
         else:
             raise ValueError("Can't determine working directory.")
 
-    def _setup_iteratively_chunk_staged_diff_into_commits(self):
+    def _setup_iteratively_chunk_staged_diff_into_commits(self) -> bool:
+        """
+        Sets up the environment of the Docker container for iteratively chunking the staged difference in the repository into multiple commits.
+
+        Checks out the first (ie. chronologically newest) commit in the scenario and then soft resets the changes of the file
+        specified in the scenario to stage the differences between the first (ie. newest) and last (ie. oldest) commit.
+
+
+        Raises:
+            ScenarioPreconditionSetupException: If an error occurs during checkout or reset commands within the Docker container.
+
+        Returns:
+            bool: whether the setup was successful
+        """
         command = '/bin/bash -c "{command_to_execute}"'
 
         checkout_command = f"git checkout {self.scenario['first_commit']}"
@@ -76,7 +121,8 @@ class ScenarioEnvironmentManager:
                     privileged=False, workdir=self.repository_work_dir)
 
                 if err_code == 0:
-                    logging.info(output.decode('utf-8'))
+                    logging.info('Scenario precondition successfully set up.')
+                    logging.info(f'Current "git status":{output.decode("utf-8")}')
                     return True
                 else:
                     raise ScenarioPreconditionSetupException(f"Could not fetch the current status of the git repository."
@@ -92,12 +138,15 @@ class ScenarioEnvironmentManager:
 
     def _setup_clean_local_branch_before_push(self):
         """
-        This should reduce the amount of commits in the local branch. The intuition is that people might just
-        commit some stuff while they are working on it, but the commits might not be maximally cohesive and coherent.
+        Sets up the environment of the Docker container for cleaning the local tree (ie. rebase) in the repository before pushing.
 
-        TODO The length of my chain is incorrect. Let's try and see if the agent can deal with it anyways.
+        Checks out the first (ie. chronologically newest) commit in the scenario.
+
+        Raises:
+            ScenarioPreconditionSetupException: If the checkout command fails.
+
         Returns:
-
+            bool: whether the setup was successful
         """
         command = '/bin/bash -c "{command_to_execute}"'
 
