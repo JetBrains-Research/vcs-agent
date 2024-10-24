@@ -2,7 +2,7 @@ from docker.models.containers import Container
 
 import logging
 
-from src.ideformer_client.exceptions import ScenarioPreconditionSetupException
+from src.ideformer_client.exceptions import ScenarioEnvironmentException
 from src.ideformer_client.scenario_type import ScenarioType
 from src.yt_scripts.schemas import RepositoryDataRow
 
@@ -55,7 +55,7 @@ class ScenarioEnvironmentManager:
         as an info message.
 
         Raises:
-            ScenarioPreconditionSetupException if the clone operation fails.
+            ScenarioEnvironmentException if the clone operation fails.
         """
         # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
         startup_command = '/bin/bash -c "git clone https://github.com/{repository_name}.git"'
@@ -63,14 +63,32 @@ class ScenarioEnvironmentManager:
 
         output = output.decode("utf-8")
         if err_code != 0:
-            raise ScenarioPreconditionSetupException(f'Could not clone repository.\n{output}')
+            raise ScenarioEnvironmentException(f'Could not clone repository.\n{output}')
         logging.info(output)
 
     def teardown_repository(self):
         raise NotImplementedError
 
     def provide_scenario_context(self):
-        raise NotImplementedError
+        """
+        Provides context on the current state of the environment
+
+        Currently includes:
+            - git status
+
+        Returns:
+            str: A formatted string containing a summary of the current state of the environment
+        """
+        return self._run_git_status()
+
+    def _run_git_status(self):
+        err_code, output = self.container.exec_run(
+            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'),
+            privileged=False, workdir=self.repository_work_dir)
+        if err_code == 0:
+            return output.decode("utf-8")
+        else:
+            raise ScenarioEnvironmentException(f"Cannot get git status. Docker error code: {err_code}.")
 
     def _setup_repository_working_directory(self):
         """
@@ -98,7 +116,7 @@ class ScenarioEnvironmentManager:
 
 
         Raises:
-            ScenarioPreconditionSetupException: If an error occurs during checkout or reset commands within the Docker container.
+            ScenarioEnvironmentException: If an error occurs during checkout or reset commands within the Docker container.
 
         Returns:
             bool: whether the setup was successful
@@ -114,25 +132,14 @@ class ScenarioEnvironmentManager:
             err_code, output = self.container.exec_run(command.format(command_to_execute=reset_command),
                                                        privileged=False, workdir=self.repository_work_dir)
             if err_code == 0:
-                # TODO this could be removed after debugging or passed to the agent in the initial prompt to remove
-                #   a turn that it will use for exploration
-                err_code, output = self.container.exec_run(
-                    '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'),
-                    privileged=False, workdir=self.repository_work_dir)
-
-                if err_code == 0:
-                    logging.info('Scenario precondition successfully set up.')
-                    logging.info(f'Current "git status":{output.decode("utf-8")}')
-                    return True
-                else:
-                    raise ScenarioPreconditionSetupException(f"Could not fetch the current status of the git repository."
-                                                             f" Docker error code: {err_code}.")
+                logging.info('Scenario precondition successfully set up.')
+                return True
             else:
-                raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['last_commit']} and "
+                raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['last_commit']} and "
                                                          f"soft reset changes in {self.scenario['file']}. Docker error "
                                                          f"code: {err_code}.")
         else:
-            raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['first_commit']}. Docker "
+            raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['first_commit']}. Docker "
                                                      f"error code: {err_code}.")
 
 
@@ -143,7 +150,7 @@ class ScenarioEnvironmentManager:
         Checks out the first (ie. chronologically newest) commit in the scenario.
 
         Raises:
-            ScenarioPreconditionSetupException: If the checkout command fails.
+            ScenarioEnvironmentException: If the checkout command fails.
 
         Returns:
             bool: whether the setup was successful
@@ -156,5 +163,5 @@ class ScenarioEnvironmentManager:
         if err_code == 0:
             return True
         else:
-            raise ScenarioPreconditionSetupException(f"Cannot check out commit: {self.scenario['first_commit']}. "
+            raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['first_commit']}. "
                                                      f"Docker error code: {err_code}.")

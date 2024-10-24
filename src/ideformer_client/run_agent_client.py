@@ -13,7 +13,7 @@ from src.ideformer_client.environment.docker_manager import DockerManager
 from src.ideformer_client.data.git_dataset_provider import GitDatasetProvider
 from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
 from src.ideformer_client.environment.scenario_environment_manager import ScenarioEnvironmentManager
-from src.ideformer_client.exceptions import ScenarioPreconditionSetupException
+from src.ideformer_client.exceptions import ScenarioEnvironmentException
 from src.ideformer_client.scenario_type import ScenarioType
 from src.ideformer_client.terminal_access_tool_provider import TerminalAccessToolImplementationProvider
 
@@ -37,7 +37,7 @@ async def main():
     container = docker_manager.start_container()
 
     for repository in git_dataset_provider.stream_repositories():
-        scenario_type: ScenarioType = ScenarioType.FILE_COMMIT_GRAM_REBASE # TODO iterate or pass as cmd arg?
+        scenario_type: ScenarioType = ScenarioType.FILE_COMMIT_GRAM_CHUNK # TODO iterate or pass as cmd arg?
         scenarios = git_dataset_provider.get_scenarios_for(scenario_type=scenario_type)
 
         for scenario in scenarios:
@@ -54,7 +54,7 @@ async def main():
                 )
                 scenario_environment_manager.clone_repository()
                 scenario_environment_manager.setup_scenario_preconditions()
-            except ScenarioPreconditionSetupException as e:
+            except ScenarioEnvironmentException as e:
                 logging.error(f"Skipping scenario {repository} due to precondition setup error: \n{e}")
                 continue
             except ValueError as e:
@@ -62,7 +62,16 @@ async def main():
                 continue
 
             system_prompt = PromptProvider.get_system_prompt()
-            user_prompt = PromptProvider.get_prompt_for(scenario_type)
+
+            try:
+                scenario_context = scenario_environment_manager.provide_scenario_context()
+                user_prompt = PromptProvider.get_prompt_for(scenario_type, context=scenario_context)
+            except ScenarioEnvironmentException as e:
+                logging.error(f"Could not fetch scenario context for repository{repository.name},{scenario_type},{scenario}: \n{e}")
+                logging.error('Proceeding without context.')
+                user_prompt = PromptProvider.get_prompt_for(scenario_type, context='unavailable')
+
+            logging.info(f'Attempting to solve the scenario.\nRepository: {repository.name}\nScenario: {scenario}\nUser prompt: {user_prompt}')
 
             tool = TerminalAccessToolImplementationProvider(
                 container=container,
