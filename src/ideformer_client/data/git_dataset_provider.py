@@ -1,8 +1,6 @@
-from multiprocessing.managers import Value
-
 from yt.wrapper.response_stream import ResponseStream
 
-from src.ideformer_client.scenario_type import ScenarioType
+from src.ideformer_client.environment.scenario_type import ScenarioType
 from src.yt_scripts.schemas import RepositoryDataRow
 
 import sys

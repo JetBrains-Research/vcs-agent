@@ -1,7 +1,7 @@
 from textwrap import dedent
 from typing import Optional
 
-from src.ideformer_client.scenario_type import ScenarioType
+from src.ideformer_client.environment.scenario_type import ScenarioType
 
 
 class PromptProvider:

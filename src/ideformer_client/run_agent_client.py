@@ -13,9 +13,9 @@ from src.ideformer_client.environment.docker_manager import DockerManager
 from src.ideformer_client.data.git_dataset_provider import GitDatasetProvider
 from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
 from src.ideformer_client.environment.scenario_environment_manager import ScenarioEnvironmentManager
-from src.ideformer_client.exceptions import ScenarioEnvironmentException
-from src.ideformer_client.scenario_type import ScenarioType
-from src.ideformer_client.terminal_access_tool_provider import TerminalAccessToolImplementationProvider
+from src.ideformer_client.utils.exceptions import ScenarioEnvironmentException
+from src.ideformer_client.environment.scenario_type import ScenarioType
+from src.ideformer_client.environment.terminal_access_tool_provider import TerminalAccessToolImplementationProvider
 
 
 async def main():
