@@ -74,14 +74,11 @@ class ScenarioEnvironmentManager:
         This involves resetting staged changes, resetting the working directory, and removing the agent's target branch.
         Upon successful completion, validates that the target branch has been removed.
 
-        Returns:
-            bool: True if the repository reset is successful.
-
         Raises:
             ScenarioEnvironmentException: If the reset operation fails or if the
             target branch is still present after the reset.
         """
-        teardown_command_err_code, _ = self.container.exec_run(
+        teardown_command_err_code, teardown_output = self.container.exec_run(
             '/bin/bash -c "{command_to_execute}"'\
                 .format(command_to_execute='git reset --hard HEAD &&  ' # Reset any changes staged or unstaged and workdir
                                             f'git checkout {self.default_branch_name} &&'
@@ -96,10 +93,9 @@ class ScenarioEnvironmentManager:
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'git branch --list {self.AGENT_TARGET_BRANCH_NAME}'),
             privileged=False, workdir=self.repository_work_dir)
         if teardown_command_err_code == 0 and validation_command_err_code == 0 and validation_output == b'':
-            logging.info(f'Successfully tore down the scenario. "git status":\n{self._run_git_status()}')
-            return True
+            logging.info(f'Successfully tore down the scenario.')
         else:
-            raise ScenarioEnvironmentException(f"Could not reset repository."
+            raise ScenarioEnvironmentException(f"Could not reset repository. Command output: {teardown_output.decode('utf-8')}."
                                                f"\nBranch deletion validation (empty string if successful): {validation_output.decode('utf-8')}"
                                                f"\nDocker error code: {teardown_command_err_code}.")
 
@@ -110,6 +106,9 @@ class ScenarioEnvironmentManager:
         This method performs the initial setup of the repository by cloning it
         to the local machine. It also retrieves and sets the default branch name
         for the repository.
+
+        Raises:
+            ScenarioEnvironmentException: If either the cloning or setup of the default branch name fail.
         """
         self._clone_repository()
         self.default_branch_name = self._get_default_branch_name()
@@ -119,10 +118,6 @@ class ScenarioEnvironmentManager:
         Remove the repository from the container.
 
         Removes the repository directory with `rm -r` and then lists the remaining files for debugging purposes.
-        Logs the output of the command if successful, otherwise raises a `ScenarioEnvironmentException`.
-
-        Returns:
-            bool: True if the repository was successfully removed.
 
         Raises:
             ScenarioEnvironmentException: If the repository could not be reset, indicated by a non-zero Docker error code.
@@ -131,8 +126,8 @@ class ScenarioEnvironmentManager:
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'rm -r {self.repository_work_dir} && ls'),
             privileged=False)
         if err_code == 0:
-            logging.info(f'Successfully removed repository: {self.repository_name} from container. "ls" yields: {output.decode("utf-8")}')
-            return True
+            logging.info(f'Successfully removed repository: {self.repository_name} from container.')
+            logging.debug(f'"ls" yields: {output.decode("utf-8")}')
         else:
             raise ScenarioEnvironmentException(f"Could not reset repository. Docker error code: {err_code}.")
 
@@ -145,6 +140,9 @@ class ScenarioEnvironmentManager:
 
         Returns:
             str: A formatted string containing a summary of the current state of the environment
+
+        Raises:
+            ScenarioEnvironmentException: If the context cannot be fetched (git status fails).
         """
         return self._run_git_status()
 
@@ -161,13 +159,14 @@ class ScenarioEnvironmentManager:
             ScenarioEnvironmentException if the clone operation fails.
         """
         # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
-        startup_command = '/bin/bash -c "git clone https://github.com/{repository_name}.git"'
-        err_code, output = self.container.exec_run(startup_command.format(repository_name=self.repository_name))
+        clone_command = '/bin/bash -c "git clone https://github.com/{repository_name}.git"'
+        err_code, output = self.container.exec_run(clone_command.format(repository_name=self.repository_name))
 
         output = output.decode("utf-8")
         if err_code != 0:
-            raise ScenarioEnvironmentException(f'Could not clone repository.\n{output}')
-        logging.info(output)
+            raise ScenarioEnvironmentException(f'Could not clone repository {self.repository_name}:\n{output}')
+        else:
+            logging.info(f'Successfully cloned repository {self.repository_name}:\n{output}')
 
     def _get_default_branch_name(self):
         """
@@ -199,9 +198,6 @@ class ScenarioEnvironmentManager:
         This method creates and checks out a new branch specified by AGENT_TARGET_BRANCH in the
         repository residing in the Docker container.
 
-        Returns:
-            bool: True if the branch setup and checkout are successful.
-
         Raises:
             ScenarioEnvironmentException: If the branch setup and checkout fail, an exception is
                                           raised with the Docker error code.
@@ -211,8 +207,8 @@ class ScenarioEnvironmentManager:
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'git checkout -b "{self.AGENT_TARGET_BRANCH_NAME}"'),
             privileged=False, workdir=self.repository_work_dir)
         if err_code == 0:
-            logging.info(f'Successfully set up branch for agent actions: {self.AGENT_TARGET_BRANCH_NAME}.\n"git status":\n{self._run_git_status()}')
-            return True
+            logging.info(f'Successfully set up branch for agent actions: {self.AGENT_TARGET_BRANCH_NAME}.')
+            logging.debug(f'"git status" after setup:\n{self._run_git_status()}')
         else:
             raise ScenarioEnvironmentException(f"Could not set up and check out agent branch: {self.AGENT_TARGET_BRANCH_NAME}. "
                                                f"Docker error code: {err_code}.")
@@ -260,7 +256,7 @@ class ScenarioEnvironmentManager:
         else:
             raise ValueError("Can't determine working directory.")
 
-    def _setup_iteratively_chunk_staged_diff_into_commits(self) -> bool:
+    def _setup_iteratively_chunk_staged_diff_into_commits(self):
         """
         Sets up the environment of the Docker container for iteratively chunking the staged difference in the repository into multiple commits.
 
@@ -270,9 +266,6 @@ class ScenarioEnvironmentManager:
 
         Raises:
             ScenarioEnvironmentException: If an error occurs during checkout or reset commands within the Docker container.
-
-        Returns:
-            bool: whether the setup was successful
         """
         command = '/bin/bash -c "{command_to_execute}"'
 
@@ -284,13 +277,13 @@ class ScenarioEnvironmentManager:
             reset_command = f"git checkout {self.scenario['last_commit']} -- {self.scenario['file']}"
             err_code, output = self.container.exec_run(command.format(command_to_execute=reset_command),
                                                        privileged=False, workdir=self.repository_work_dir)
-            if err_code == 0:
-                logging.info('Scenario precondition successfully set up.')
-                return True
-            else:
+            if err_code != 0:
                 raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['last_commit']} and "
-                                                         f"soft reset changes in {self.scenario['file']}. Docker error "
-                                                         f"code: {err_code}.")
+                                                   f"soft reset changes in {self.scenario['file']}. Docker error "
+                                                   f"code: {err_code}.")
+            else:
+                logging.info(f'Scenario precondition for {self.scenario_type} successfully set up.')
+
         else:
             raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['first_commit']}. Docker "
                                                      f"error code: {err_code}.")
@@ -302,9 +295,6 @@ class ScenarioEnvironmentManager:
 
         Checks out the first (ie. chronologically newest) commit in the scenario.
 
-        Returns:
-            bool: whether the setup was successful
-
         Raises:
             ScenarioEnvironmentException: If the checkout command fails.
         """
@@ -313,8 +303,8 @@ class ScenarioEnvironmentManager:
         checkout_command = f"git checkout {self.scenario['first_commit']}"
         err_code, output = self.container.exec_run(command.format(command_to_execute=checkout_command),
                                                    privileged=False, workdir=self.repository_work_dir)
-        if err_code == 0:
-            return True
-        else:
+        if err_code != 0:
             raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['first_commit']}. "
                                                      f"Docker error code: {err_code}.")
+        else:
+            logging.info(f'Scenario precondition for {self.scenario_type} successfully set up.')

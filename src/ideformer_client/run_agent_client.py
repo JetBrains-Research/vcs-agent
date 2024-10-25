@@ -74,11 +74,13 @@ async def main():
                 scenario_context = scenario_environment_manager.provide_scenario_context()
                 user_prompt = PromptProvider.get_prompt_for(scenario_type, context=scenario_context)
             except ScenarioEnvironmentException as e:
-                logging.error(f"Could not fetch scenario context for repository{repository.name},{scenario_type},{scenario}: \n{e}"
+                logging.error(f"Could not fetch scenario context for repository {repository.name}, scenario type "
+                              f"{scenario_type} and\nscenario{scenario}:\n{e}\n"
                               'Proceeding without context.')
                 user_prompt = PromptProvider.get_prompt_for(scenario_type, context='unavailable')
 
-            logging.info(f'Attempting to solve the scenario.\nRepository: {repository.name}\nScenario: {scenario}\nUser prompt: {user_prompt}')
+            logging.debug(f'Current scenario is given by:\nRepository: {repository.name}\nScenario type: {scenario_type}'
+                          f'\nScenario: {scenario}\nUser prompt: {user_prompt}')
 
             tool = TerminalAccessToolImplementationProvider(
                 container=container,
