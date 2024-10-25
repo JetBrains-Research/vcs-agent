@@ -50,6 +50,9 @@ async def main():
         except ScenarioEnvironmentException as e:
             logging.error(f"Skipping scenario {repository}: \n{e}")
             continue
+        except ValueError as e:
+            logging.error(f"Skipping scenario {repository}. Could not set repository working directory: \n{e}")
+            continue
 
         for scenario in scenarios:
             # Ensure that we actually have > 0 scenarios of scenario_type for the current repository
@@ -62,9 +65,7 @@ async def main():
                 scenario_environment_manager.setup_scenario_preconditions()
             except ScenarioEnvironmentException as e:
                 logging.error(f"Skipping scenario {repository} due to precondition setup error: \n{e}")
-                continue
-            except ValueError as e:
-                logging.error(f"Skipping scenario {repository} due to precondition setup error: \n{e}")
+                scenario_environment_manager.teardown_scenario()
                 continue
 
             system_prompt = PromptProvider.get_system_prompt()
@@ -73,8 +74,8 @@ async def main():
                 scenario_context = scenario_environment_manager.provide_scenario_context()
                 user_prompt = PromptProvider.get_prompt_for(scenario_type, context=scenario_context)
             except ScenarioEnvironmentException as e:
-                logging.error(f"Could not fetch scenario context for repository{repository.name},{scenario_type},{scenario}: \n{e}")
-                logging.error('Proceeding without context.')
+                logging.error(f"Could not fetch scenario context for repository{repository.name},{scenario_type},{scenario}: \n{e}"
+                              'Proceeding without context.')
                 user_prompt = PromptProvider.get_prompt_for(scenario_type, context='unavailable')
 
             logging.info(f'Attempting to solve the scenario.\nRepository: {repository.name}\nScenario: {scenario}\nUser prompt: {user_prompt}')
@@ -110,13 +111,25 @@ async def main():
 
             await runner.arun()
 
-            scenario_environment_manager.teardown_scenario()
+            try:
+                scenario_environment_manager.teardown_scenario()
+            except ScenarioEnvironmentException as e:
+                logging.error(f"Scenario cleanup failed for {scenario}: \n{e}\n"
+                              f"Attempting to recover by removing and re-setting (incl. clone) the repository.")
+                try:
+                    scenario_environment_manager.teardown_repository()
+                    scenario_environment_manager.setup_repository()
+                except ScenarioEnvironmentException:
+                    logging.error(f'Could not recover for scenario: {scenario} in repository {repository}. Continuing with the next repository.')
+                    break
 
             # Limit to two scenarios
             j += 1
             if j > 1:
                 break
 
+        # If this raises an exception the only way out would be re-orchestrating the Docker container, or removing with force
+        # Neither of which I really want to do for now.
         scenario_environment_manager.teardown_repository()
 
         # Limit to two repositories
