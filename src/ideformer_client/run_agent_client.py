@@ -139,7 +139,5 @@ async def main():
         if i > 1:
             break
 
-    docker_manager.stop_and_remove_container()
-
 if __name__ == '__main__':
     asyncio.run(main())
