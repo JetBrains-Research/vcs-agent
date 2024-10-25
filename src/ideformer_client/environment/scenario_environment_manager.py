@@ -52,8 +52,8 @@ class ScenarioEnvironmentManager:
         Sets up the preconditions for different scenario types.
 
         Depending on the scenario type, this method will either:
-          - Setup iteratively chunk staged diff into commits.
-          - Setup a clean local branch before push.
+          - Set up iteratively chunk staged diff into commits.
+          - Set up a clean local branch before push.
 
         Raises:
             NotImplementedError: If the scenario type is not supported.
@@ -74,7 +74,22 @@ class ScenarioEnvironmentManager:
                 f'and ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_REBASE.name}.')
 
     def teardown_scenario(self):
-        raise NotImplementedError
+        # TODO: I think I might also need to remove whichever branches the agent created or make sure that it didnt
+        #   Touch parts outside of its branch. Not sure how exactly this would be possible?
+        err_code, output = self.container.exec_run(
+            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git reset &&  ' # Reset staged changes
+                                                                            'git checkout -- . && ' # Reset workdir
+                                                                            f'git checkout {self.default_branch_name}'),
+            privileged=False, workdir=self.repository_work_dir)
+        if err_code == 0:
+            logging.info(f'Successfully tore down the scenario. "git status":\n{self._run_git_status()}')
+            return True
+        else:
+            raise ScenarioEnvironmentException(f"Could not reset repository. Docker error code: {err_code}.")
+
+    def setup_repository(self):
+        """
+        Clones the repository and sets up the default branch name.
 
     def clone_repository(self):
         """
@@ -98,7 +113,14 @@ class ScenarioEnvironmentManager:
         logging.info(output)
 
     def teardown_repository(self):
-        raise NotImplementedError
+        err_code, output = self.container.exec_run(
+            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'rm -r {self.repository_work_dir} && ls'),
+            privileged=False)
+        if err_code == 0:
+            logging.info(f'Successfully removed repository: {self.repository_name} from container. "ls" yields: {output.decode("utf-8")}')
+            return True
+        else:
+            raise ScenarioEnvironmentException(f"Could not reset repository. Docker error code: {err_code}.")
 
     def provide_scenario_context(self):
         """
