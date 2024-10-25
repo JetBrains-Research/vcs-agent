@@ -1,3 +1,5 @@
+from typing import Optional
+
 from docker.models.containers import Container
 
 import logging
@@ -11,16 +13,20 @@ class ScenarioEnvironmentManager:
     def __init__(self,
                  container: Container,
                  repository: RepositoryDataRow,
-                 scenario_type: ScenarioType,
-                 scenario: dict):
+                 scenario_type: Optional[ScenarioType] = None,
+                 scenario: Optional[dict] = None):
         self.container = container
         self.repository = repository
         self.repository_name = repository.name
         self.scenario_type = scenario_type
         self.scenario = scenario
-        self.repository_work_dir = None
+        self.repository_work_dir = self._get_repository_working_directory()
+    def set_scenario(self, scenario: dict):
+        self.scenario = scenario
 
         self._setup_repository_working_directory()
+    def set_scenario_type(self, scenario_type: ScenarioType):
+        self.scenario_type = scenario_type
 
     def setup_scenario_preconditions(self):
         """
@@ -33,6 +39,12 @@ class ScenarioEnvironmentManager:
         Raises:
             NotImplementedError: If the scenario type is not supported.
         """
+        if self.scenario is None:
+            raise ScenarioEnvironmentException('Cannot setup scenario, since scenario is None.')
+
+        if self.scenario_type is None:
+            raise ScenarioEnvironmentException('Cannot setup scenario, since scenario_type is None.')
+
         if self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
             return self._setup_iteratively_chunk_staged_diff_into_commits()
         elif self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
@@ -90,20 +102,23 @@ class ScenarioEnvironmentManager:
         else:
             raise ScenarioEnvironmentException(f"Cannot get git status. Docker error code: {err_code}.")
 
-    def _setup_repository_working_directory(self):
+    def _get_repository_working_directory(self):
         """
-        Set up the repository working directory inside the container as the current working directory and the repository name.
+        Gets the repository working directory inside the container.
 
         This method runs a shell command to get the present working directory inside the container.
         It appends the repository name (sans any preceding path) to this directory and sets the repository
-        working directory for the instance.
+        working directory for the instance and returns the result. Does not require the repository to be cloned already.
 
         Raises:
             ValueError: If the working directory can't be determined.
+
+        Returns:
+            str: Absolute path to the repository working directory for the repository.
         """
         err_code, output = self.container.exec_run("/bin/bash -c pwd")
         if err_code == 0:
-            self.repository_work_dir = output.decode("utf-8").strip() + '/' + self.repository_name.split("/")[-1]
+            return output.decode("utf-8").strip() + '/' + self.repository_name.split("/")[-1]
         else:
             raise ValueError("Can't determine working directory.")
 
