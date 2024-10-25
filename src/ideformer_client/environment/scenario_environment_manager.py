@@ -21,31 +21,13 @@ class ScenarioEnvironmentManager:
         self.scenario_type = scenario_type
         self.scenario = scenario
         self.repository_work_dir = self._get_repository_working_directory()
-        self._default_branch_name = None
+        self.default_branch_name = None
 
     def set_scenario(self, scenario: dict):
         self.scenario = scenario
 
     def set_scenario_type(self, scenario_type: ScenarioType):
         self.scenario_type = scenario_type
-
-    @property
-    def default_branch_name(self):
-        """
-        Returns the default branch name of the repository.
-
-        This method retrieves the default branch name from an internal cache, and if it is not already cached,
-        it fetches the name using the `_get_default_branch_name` method.
-
-        Raises:
-            ScenarioEnvironmentException: If something went wrong during the initialization.
-
-        Returns:
-            str: The name of the default branch.
-        """
-        if self._default_branch_name is None:
-            self._default_branch_name = self._get_default_branch_name()
-        return self._default_branch_name
 
     def setup_scenario_preconditions(self):
         """
@@ -91,7 +73,15 @@ class ScenarioEnvironmentManager:
         """
         Clones the repository and sets up the default branch name.
 
-    def clone_repository(self):
+        This method performs the initial setup of the repository by cloning it
+        to the local machine. It also retrieves and sets the default branch name
+        for the repository.
+        """
+        self._clone_repository()
+        self.default_branch_name = self._get_default_branch_name()
+
+
+    def _clone_repository(self):
         """
         Clones the git repository of the current repository into the container.
 

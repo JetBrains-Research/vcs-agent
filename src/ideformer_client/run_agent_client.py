@@ -39,6 +39,17 @@ async def main():
     for repository in git_dataset_provider.stream_repositories():
         scenario_type: ScenarioType = ScenarioType.FILE_COMMIT_GRAM_CHUNK # TODO iterate or pass as cmd arg?
         scenarios = git_dataset_provider.get_scenarios_for(scenario_type=scenario_type)
+        j = 0
+
+        try:
+            scenario_environment_manager = ScenarioEnvironmentManager(
+                container=container,
+                repository=repository,
+            )
+            scenario_environment_manager.setup_repository()
+        except ScenarioEnvironmentException as e:
+            logging.error(f"Skipping scenario {repository}: \n{e}")
+            continue
 
         for scenario in scenarios:
             # Ensure that we actually have > 0 scenarios of scenario_type for the current repository
@@ -46,13 +57,8 @@ async def main():
                 continue
 
             try:
-                scenario_environment_manager = ScenarioEnvironmentManager(
-                    container=container,
-                    repository=repository,
-                    scenario_type=scenario_type,
-                    scenario=scenario,
-                )
-                scenario_environment_manager.clone_repository()
+                scenario_environment_manager.set_scenario(scenario)
+                scenario_environment_manager.set_scenario_type(scenario_type)
                 scenario_environment_manager.setup_scenario_preconditions()
             except ScenarioEnvironmentException as e:
                 logging.error(f"Skipping scenario {repository} due to precondition setup error: \n{e}")
@@ -103,7 +109,16 @@ async def main():
             )
 
             await runner.arun()
-            break
+
+            scenario_environment_manager.teardown_scenario()
+
+            # Limit to one scenarios
+            j = + 1
+            if j > 0:
+                break
+
+        scenario_environment_manager.teardown_repository()
+
         i += 1
         if i > 0:
             break
