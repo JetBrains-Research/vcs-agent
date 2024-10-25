@@ -1,5 +1,6 @@
 import time
 from typing import Dict
+from weakref import finalize
 
 import docker
 from docker.errors import APIError, ImageNotFound
@@ -21,6 +22,8 @@ class DockerManager:
         self.container = None
 
         self.client = docker.from_env()
+
+        finalize(self, self.stop_and_remove_container)
 
     def stop_and_remove_container(self) :
         """
