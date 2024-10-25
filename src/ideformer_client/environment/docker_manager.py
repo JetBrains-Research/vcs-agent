@@ -56,7 +56,7 @@ class DockerManager:
                 self.client.images.pull(repository=repository, tag=tag)
             except APIError as e:
                 logging.error(e)
-                logging.info("Please verify that you passed a valid Docker Hub image name and tag. Make sure"
+                logging.error("Please verify that you passed a valid Docker Hub image name and tag. Make sure"
                              "the image is available on the Docker Hub.")
                 raise e
 
@@ -72,11 +72,18 @@ class DockerManager:
 
         Returns:
             (Container) The created container object.
+
+        Raises:
+            APIError: If a Docker API error occurred while creating the container.
         """
-        self.container = self.client.containers.create(
-            image=self.image, environment=self.env_vars, detach=True, entrypoint="tail -f /dev/null"
-        )
-        return self.container
+        try:
+            self.container = self.client.containers.create(
+                image=self.image, environment=self.env_vars, detach=True, entrypoint="tail -f /dev/null"
+            )
+            return self.container
+        except APIError as e:
+            logging.error(f'Docker error occurred while creating the container: {e}')
+            raise e
 
     def start_container(self):
         """
