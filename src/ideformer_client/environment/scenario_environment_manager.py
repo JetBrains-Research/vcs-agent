@@ -21,12 +21,31 @@ class ScenarioEnvironmentManager:
         self.scenario_type = scenario_type
         self.scenario = scenario
         self.repository_work_dir = self._get_repository_working_directory()
+        self._default_branch_name = None
+
     def set_scenario(self, scenario: dict):
         self.scenario = scenario
 
-        self._setup_repository_working_directory()
     def set_scenario_type(self, scenario_type: ScenarioType):
         self.scenario_type = scenario_type
+
+    @property
+    def default_branch_name(self):
+        """
+        Returns the default branch name of the repository.
+
+        This method retrieves the default branch name from an internal cache, and if it is not already cached,
+        it fetches the name using the `_get_default_branch_name` method.
+
+        Raises:
+            ScenarioEnvironmentException: If something went wrong during the initialization.
+
+        Returns:
+            str: The name of the default branch.
+        """
+        if self._default_branch_name is None:
+            self._default_branch_name = self._get_default_branch_name()
+        return self._default_branch_name
 
     def setup_scenario_preconditions(self):
         """
@@ -92,6 +111,29 @@ class ScenarioEnvironmentManager:
             str: A formatted string containing a summary of the current state of the environment
         """
         return self._run_git_status()
+
+    def _get_default_branch_name(self):
+        """
+        Retrieves the default branch name from the output of the "git status" command. Run right after cloning the
+        repository.
+
+        Returns:
+            str: The name of the default branch.
+
+        Raises:
+            ScenarioEnvironmentException: If the output of "git status" does not contain the branch information or if the output is empty.
+        """
+        output = self._run_git_status()
+
+        lines = output.splitlines()
+        if len(lines) > 0:
+            first_line = lines[0]
+            if 'On branch' in first_line:
+                return first_line.split('On branch ')[1].strip()
+            else:
+                raise ScenarioEnvironmentException(f'"git status" did not contain default branch: {output}')
+        else:
+            raise ScenarioEnvironmentException(f'Cannot parse "git status" output, nothing to parse: {output}')
 
     def _run_git_status(self):
         err_code, output = self.container.exec_run(
