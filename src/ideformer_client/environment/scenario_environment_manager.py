@@ -68,18 +68,40 @@ class ScenarioEnvironmentManager:
         self._setup_agent_branch()
 
     def teardown_scenario(self):
-        # TODO: I think I might also need to remove whichever branches the agent created or make sure that it didnt
-        #   Touch parts outside of its branch. Not sure how exactly this would be possible?
-        err_code, output = self.container.exec_run(
-            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git reset &&  ' # Reset staged changes
-                                                                            'git checkout -- . && ' # Reset workdir
-                                                                            f'git checkout {self.default_branch_name}'),
+        """
+        Resets the repository to its default state after a scenario has been executed.
+
+        This involves resetting staged changes, resetting the working directory, and removing the agent's target branch.
+        Upon successful completion, validates that the target branch has been removed.
+
+        Returns:
+            bool: True if the repository reset is successful.
+
+        Raises:
+            ScenarioEnvironmentException: If the reset operation fails or if the
+            target branch is still present after the reset.
+        """
+        teardown_command_err_code, _ = self.container.exec_run(
+            '/bin/bash -c "{command_to_execute}"'\
+                .format(command_to_execute='git reset --hard HEAD &&  ' # Reset any changes staged or unstaged and workdir
+                                            f'git checkout {self.default_branch_name} &&'
+                                            # Remove the branch in which the agent attempted to solve this scenario
+                                            # and force removal from the repository entirely, by triggering garbage collection
+                                            # Reading Note: `git prune` could end up being to costly to run after every scenario.
+                                            #   Monitor this.
+                                            f'git branch -D {self.AGENT_TARGET_BRANCH_NAME} && '
+                                            'git prune'),
             privileged=False, workdir=self.repository_work_dir)
-        if err_code == 0:
+        validation_command_err_code, validation_output = self.container.exec_run(
+            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'git branch --list {self.AGENT_TARGET_BRANCH_NAME}'),
+            privileged=False, workdir=self.repository_work_dir)
+        if teardown_command_err_code == 0 and validation_command_err_code == 0 and validation_output == b'':
             logging.info(f'Successfully tore down the scenario. "git status":\n{self._run_git_status()}')
             return True
         else:
-            raise ScenarioEnvironmentException(f"Could not reset repository. Docker error code: {err_code}.")
+            raise ScenarioEnvironmentException(f"Could not reset repository."
+                                               f"\nBranch deletion validation (empty string if successful): {validation_output.decode('utf-8')}"
+                                               f"\nDocker error code: {teardown_command_err_code}.")
 
     def setup_repository(self):
         """
@@ -93,6 +115,18 @@ class ScenarioEnvironmentManager:
         self.default_branch_name = self._get_default_branch_name()
 
     def teardown_repository(self):
+        """
+        Remove the repository from the container.
+
+        Removes the repository directory with `rm -r` and then lists the remaining files for debugging purposes.
+        Logs the output of the command if successful, otherwise raises a `ScenarioEnvironmentException`.
+
+        Returns:
+            bool: True if the repository was successfully removed.
+
+        Raises:
+            ScenarioEnvironmentException: If the repository could not be reset, indicated by a non-zero Docker error code.
+        """
         err_code, output = self.container.exec_run(
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'rm -r {self.repository_work_dir} && ls'),
             privileged=False)
@@ -177,6 +211,7 @@ class ScenarioEnvironmentManager:
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'git checkout -b "{self.AGENT_TARGET_BRANCH_NAME}"'),
             privileged=False, workdir=self.repository_work_dir)
         if err_code == 0:
+            logging.info(f'Successfully set up branch for agent actions: {self.AGENT_TARGET_BRANCH_NAME}.\n"git status":\n{self._run_git_status()}')
             return True
         else:
             raise ScenarioEnvironmentException(f"Could not set up and check out agent branch: {self.AGENT_TARGET_BRANCH_NAME}. "
@@ -267,11 +302,11 @@ class ScenarioEnvironmentManager:
 
         Checks out the first (ie. chronologically newest) commit in the scenario.
 
-        Raises:
-            ScenarioEnvironmentException: If the checkout command fails.
-
         Returns:
             bool: whether the setup was successful
+
+        Raises:
+            ScenarioEnvironmentException: If the checkout command fails.
         """
         command = '/bin/bash -c "{command_to_execute}"'
 

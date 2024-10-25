@@ -112,15 +112,16 @@ async def main():
 
             scenario_environment_manager.teardown_scenario()
 
-            # Limit to one scenarios
-            j = + 1
-            if j > 0:
+            # Limit to two scenarios
+            j += 1
+            if j > 1:
                 break
 
         scenario_environment_manager.teardown_repository()
 
+        # Limit to two repositories
         i += 1
-        if i > 0:
+        if i > 1:
             break
 
     docker_manager.stop_and_remove_container()
