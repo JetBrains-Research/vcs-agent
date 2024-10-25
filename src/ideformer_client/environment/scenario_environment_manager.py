@@ -9,6 +9,10 @@ from src.ideformer_client.scenario_type import ScenarioType
 from src.yt_scripts.schemas import RepositoryDataRow
 
 class ScenarioEnvironmentManager:
+    # TODO: Right now I'm returning True if a docker command succeeds and otherwise I raise an exception,
+    #   However, I'm kinda of just throwing away the return value. That seems not right. Iterate and improve there.
+
+    AGENT_TARGET_BRANCH = 'current-scenario-branch'
 
     def __init__(self,
                  container: Container,
@@ -47,13 +51,17 @@ class ScenarioEnvironmentManager:
             raise ScenarioEnvironmentException('Cannot setup scenario, since scenario_type is None.')
 
         if self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_CHUNK:
-            return self._setup_iteratively_chunk_staged_diff_into_commits()
+            self._setup_iteratively_chunk_staged_diff_into_commits()
         elif self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
-            return self._setup_clean_local_branch_before_push()
+            self._setup_clean_local_branch_before_push()
         else:
             raise NotImplementedError(
                 f'Currently only supporting ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_CHUNK.name}'
                 f'and ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_REBASE.name}.')
+
+        # In any case, the agent's actions should be isolated into a specific branch that is set up in a deterministic
+        # way. This saves a turn and avoids fuzzy naming of the branch and resulting difficulties in the teardown.
+        self._setup_agent_branch()
 
     def teardown_scenario(self):
         # TODO: I think I might also need to remove whichever branches the agent created or make sure that it didnt
@@ -80,28 +88,6 @@ class ScenarioEnvironmentManager:
         self._clone_repository()
         self.default_branch_name = self._get_default_branch_name()
 
-
-    def _clone_repository(self):
-        """
-        Clones the git repository of the current repository into the container.
-
-        The repository URL is formed using the `self.repository_name` attribute.
-        If the clone operation fails (non-zero error code), an error message
-        is logged. Otherwise, the output of the clone operation is logged
-        as an info message.
-
-        Raises:
-            ScenarioEnvironmentException if the clone operation fails.
-        """
-        # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
-        startup_command = '/bin/bash -c "git clone https://github.com/{repository_name}.git"'
-        err_code, output = self.container.exec_run(startup_command.format(repository_name=self.repository_name))
-
-        output = output.decode("utf-8")
-        if err_code != 0:
-            raise ScenarioEnvironmentException(f'Could not clone repository.\n{output}')
-        logging.info(output)
-
     def teardown_repository(self):
         err_code, output = self.container.exec_run(
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'rm -r {self.repository_work_dir} && ls'),
@@ -123,6 +109,27 @@ class ScenarioEnvironmentManager:
             str: A formatted string containing a summary of the current state of the environment
         """
         return self._run_git_status()
+
+    def _clone_repository(self):
+        """
+        Clones the git repository of the current repository into the container.
+
+        The repository URL is formed using the `self.repository_name` attribute.
+        If the clone operation fails (non-zero error code), an error message
+        is logged. Otherwise, the output of the clone operation is logged
+        as an info message.
+
+        Raises:
+            ScenarioEnvironmentException if the clone operation fails.
+        """
+        # Executes the startup command in a blocking way, ensuring that the repository is available before continuing
+        startup_command = '/bin/bash -c "git clone https://github.com/{repository_name}.git"'
+        err_code, output = self.container.exec_run(startup_command.format(repository_name=self.repository_name))
+
+        output = output.decode("utf-8")
+        if err_code != 0:
+            raise ScenarioEnvironmentException(f'Could not clone repository.\n{output}')
+        logging.info(output)
 
     def _get_default_branch_name(self):
         """
@@ -147,7 +154,45 @@ class ScenarioEnvironmentManager:
         else:
             raise ScenarioEnvironmentException(f'Cannot parse "git status" output, nothing to parse: {output}')
 
+    def _setup_agent_branch(self):
+        """
+        Sets up the branch isolating the agent's actions from the rest of the repository.
+
+        This method creates and checks out a new branch specified by AGENT_TARGET_BRANCH in the
+        repository residing in the Docker container.
+
+        Returns:
+            bool: True if the branch setup and checkout are successful.
+
+        Raises:
+            ScenarioEnvironmentException: If the branch setup and checkout fail, an exception is
+                                          raised with the Docker error code.
+
+        """
+        err_code, output = self.container.exec_run(
+            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'git checkout -b "{self.AGENT_TARGET_BRANCH}"'),
+            privileged=False, workdir=self.repository_work_dir)
+        if err_code == 0:
+            return True
+        else:
+            raise ScenarioEnvironmentException(f"Could not set up and check out agent branch: {self.AGENT_TARGET_BRANCH}. "
+                                               f"Docker error code: {err_code}.")
+
     def _run_git_status(self):
+        """
+        Executes the `git status` command in a Docker container and returns its output.
+
+        This method runs the `git status` command in the specified working directory
+        of a Docker container. If the command is executed successfully, its output
+        is decoded and returned. Otherwise, a ScenarioEnvironmentException is raised
+        with the corresponding Docker error code.
+
+        Returns:
+            str: The output of the `git status` command if successful.
+
+        Raises:
+            ScenarioEnvironmentException: If the execution of the `git status` command in the Docker container fails.
+        """
         err_code, output = self.container.exec_run(
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'),
             privileged=False, workdir=self.repository_work_dir)
