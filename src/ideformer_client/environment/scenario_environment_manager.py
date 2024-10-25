@@ -12,7 +12,7 @@ class ScenarioEnvironmentManager:
     # TODO: Right now I'm returning True if a docker command succeeds and otherwise I raise an exception,
     #   However, I'm kinda of just throwing away the return value. That seems not right. Iterate and improve there.
 
-    AGENT_TARGET_BRANCH = 'current-scenario-branch'
+    AGENT_TARGET_BRANCH_NAME = 'current-scenario-branch'
 
     def __init__(self,
                  container: Container,
@@ -41,8 +41,12 @@ class ScenarioEnvironmentManager:
           - Set up iteratively chunk staged diff into commits.
           - Set up a clean local branch before push.
 
+        For all scenario types a new branch with the name in self.AGENT_TARGET_BRANCH_NAME is created and checked out to
+        isolate the agent actions from the rest of the repository.
+
         Raises:
             NotImplementedError: If the scenario type is not supported.
+            ScenarioEnvironmentException: If scenario or scenario_type are not initialized. Also, if the branch setup failed.
         """
         if self.scenario is None:
             raise ScenarioEnvironmentException('Cannot setup scenario, since scenario is None.')
@@ -170,12 +174,12 @@ class ScenarioEnvironmentManager:
 
         """
         err_code, output = self.container.exec_run(
-            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'git checkout -b "{self.AGENT_TARGET_BRANCH}"'),
+            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute=f'git checkout -b "{self.AGENT_TARGET_BRANCH_NAME}"'),
             privileged=False, workdir=self.repository_work_dir)
         if err_code == 0:
             return True
         else:
-            raise ScenarioEnvironmentException(f"Could not set up and check out agent branch: {self.AGENT_TARGET_BRANCH}. "
+            raise ScenarioEnvironmentException(f"Could not set up and check out agent branch: {self.AGENT_TARGET_BRANCH_NAME}. "
                                                f"Docker error code: {err_code}.")
 
     def _run_git_status(self):
