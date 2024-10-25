@@ -9,9 +9,6 @@ from src.ideformer_client.environment.scenario_type import ScenarioType
 from src.yt_scripts.schemas import RepositoryDataRow
 
 class ScenarioEnvironmentManager:
-    # TODO: Right now I'm returning True if a docker command succeeds and otherwise I raise an exception,
-    #   However, I'm kinda of just throwing away the return value. That seems not right. Iterate and improve there.
-
     AGENT_TARGET_BRANCH_NAME = 'current-scenario-branch'
 
     def __init__(self,
