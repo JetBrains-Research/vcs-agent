@@ -12,6 +12,7 @@ from src.ideformer_client.data.PromptProvider import PromptProvider
 from src.ideformer_client.environment.docker_manager import DockerManager
 from src.ideformer_client.data.git_dataset_provider import GitDatasetProvider
 from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
+from src.ideformer_client.environment.evaluator import Evaluator
 from src.ideformer_client.environment.scenario_environment_manager import ScenarioEnvironmentManager
 from src.ideformer_client.utils.exceptions import ScenarioEnvironmentException
 from src.ideformer_client.environment.scenario_type import ScenarioType
@@ -53,6 +54,9 @@ async def main():
         except ValueError as e:
             logging.error(f"Skipping scenario {repository}. Could not set repository working directory: \n{e}")
             continue
+
+        evaluator = Evaluator(container=container,
+                              agent_target_branch_name=scenario_environment_manager.AGENT_TARGET_BRANCH_NAME)
 
         for scenario in scenarios:
             # Ensure that we actually have > 0 scenarios of scenario_type for the current repository
@@ -111,7 +115,12 @@ async def main():
                 max_agent_iterations=1,
             )
 
-            await runner.arun()
+            #await runner.arun()
+
+            # Evaluate
+            evaluator.set_scenario(scenario)
+            evaluator.set_scenario_type(scenario_type)
+            evaluator.evaluate()
 
             try:
                 scenario_environment_manager.teardown_scenario()
