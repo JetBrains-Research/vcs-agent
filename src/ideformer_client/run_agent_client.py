@@ -8,7 +8,7 @@ from grazie.common.core.log import setup_logging
 from ideformer.client.agents.simple_grazie_chat_runner import IdeFormerSimpleGrazieChatRunner
 from ideformer.client.client import IdeFormerClient
 
-from src.ideformer_client.data.PromptProvider import PromptProvider
+from src.ideformer_client.data.prompt_provider import PromptProvider
 from src.ideformer_client.environment.docker_manager import DockerManager
 from src.ideformer_client.data.git_dataset_provider import GitDatasetProvider
 from src.ideformer_client.data.yt_connection_manager import YTConnectionManager
