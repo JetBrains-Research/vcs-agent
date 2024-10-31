@@ -56,7 +56,8 @@ async def main():
             continue
 
         evaluator = Evaluator(container=container,
-                              agent_target_branch_name=scenario_environment_manager.AGENT_TARGET_BRANCH_NAME)
+                              agent_target_branch_name=scenario_environment_manager.AGENT_TARGET_BRANCH_NAME,
+                              repository_work_dir=scenario_environment_manager.repository_work_dir)
 
         for scenario in scenarios:
             # Ensure that we actually have > 0 scenarios of scenario_type for the current repository
