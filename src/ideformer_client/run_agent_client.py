@@ -121,7 +121,10 @@ async def main():
             # Evaluate
             evaluator.set_scenario(scenario)
             evaluator.set_scenario_type(scenario_type)
-            evaluator.evaluate()
+            if evaluator.evaluate():
+                logging.info('Yay, successfully resolved this scenario!')
+            else:
+                logging.info('Could not resolved this scenario.')
 
             try:
                 scenario_environment_manager.teardown_scenario()
