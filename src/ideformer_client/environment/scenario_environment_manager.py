@@ -23,6 +23,7 @@ class ScenarioEnvironmentManager:
         self.scenario = scenario
         self.repository_work_dir = self._get_repository_working_directory()
         self.default_branch_name = None
+        self.command_template = '/bin/bash -c "{command_to_execute}"'
 
     def set_scenario(self, scenario: dict):
         self.scenario = scenario
@@ -264,15 +265,13 @@ class ScenarioEnvironmentManager:
         Raises:
             ScenarioEnvironmentException: If an error occurs during checkout or reset commands within the Docker container.
         """
-        command = '/bin/bash -c "{command_to_execute}"'
-
         checkout_command = f"git checkout {self.scenario['first_commit']}"
-        err_code, output = self.container.exec_run(command.format(command_to_execute=checkout_command),
+        err_code, output = self.container.exec_run(self.command_template.format(command_to_execute=checkout_command),
                                                    privileged=False, workdir=self.repository_work_dir)
         if err_code == 0:
             # Reset only the changes made to the file concerning the scenario such that they are staged
             reset_command = f"git checkout {self.scenario['last_commit']} -- {self.scenario['file']}"
-            err_code, output = self.container.exec_run(command.format(command_to_execute=reset_command),
+            err_code, output = self.container.exec_run(self.command_template.format(command_to_execute=reset_command),
                                                        privileged=False, workdir=self.repository_work_dir)
             if err_code != 0:
                 raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['last_commit']} and "
@@ -295,10 +294,8 @@ class ScenarioEnvironmentManager:
         Raises:
             ScenarioEnvironmentException: If the checkout command fails.
         """
-        command = '/bin/bash -c "{command_to_execute}"'
-
         checkout_command = f"git checkout {self.scenario['first_commit']}"
-        err_code, output = self.container.exec_run(command.format(command_to_execute=checkout_command),
+        err_code, output = self.container.exec_run(self.command_template.format(command_to_execute=checkout_command),
                                                    privileged=False, workdir=self.repository_work_dir)
         if err_code != 0:
             raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['first_commit']}. "
