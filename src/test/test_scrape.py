@@ -9,12 +9,15 @@ from src.repository_data_scraper.programming_language import ProgrammingLanguage
 
 
 class ScrapeTestCase(unittest.TestCase):
-    def test_should_generate_target_file_commit_grams(self):
-        os.chdir('../..')
-        path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
-        demo_repo = Repo(os.path.join(path_to_repositories, 'demo-repo.git'))
-        os.chdir(os.path.join(path_to_repositories, 'demo-repo.git'))
+    @classmethod
+    def setUpClass(cls):
+        os.chdir('../..')
+        cls.path_to_repositories = os.path.join(os.getcwd(), 'repos', 'testing-repositories')
+
+    def test_should_generate_target_file_commit_grams(self):
+        demo_repo = Repo(os.path.join(self.path_to_repositories, 'demo-repo.git'))
+        os.chdir(os.path.join(self.path_to_repositories, 'demo-repo.git'))
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
@@ -79,11 +82,8 @@ class ScrapeTestCase(unittest.TestCase):
             self.assertIn(candidate_file_commit_gram, target_file_commit_grams)
 
     def test_accumulator_should_not_contain_grams_of_invalid_file_type(self):
-        os.chdir('../..')
-        path_to_repositories = os.path.join(os.getcwd(), 'repos')
-
-        demo_repo = Repo(os.path.join(path_to_repositories, 'mixed-file-types-demo.git'))
-        os.chdir(os.path.join(path_to_repositories, 'mixed-file-types-demo.git'))
+        demo_repo = Repo(os.path.join(self.path_to_repositories, 'mixed-file-types-demo.git'))
+        os.chdir(os.path.join(self.path_to_repositories, 'mixed-file-types-demo.git'))
 
         # PYTHON should not contain TEXT grams
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
@@ -112,11 +112,8 @@ class ScrapeTestCase(unittest.TestCase):
                 self.repository_data_scraper.programming_language.value in candidate_file_commit_gram['file'])
 
     def test_should_generate_target_merge_scenarios(self):
-        os.chdir('../..')
-        path_to_repositories = os.path.join(os.getcwd(), 'repos')
-
-        demo_repo = Repo(os.path.join(path_to_repositories, 'demo-repo.git'))
-        os.chdir(os.path.join(path_to_repositories, 'demo-repo.git'))
+        demo_repo = Repo(os.path.join(self.path_to_repositories, 'demo-repo.git'))
+        os.chdir(os.path.join(self.path_to_repositories, 'demo-repo.git'))
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
@@ -140,11 +137,8 @@ class ScrapeTestCase(unittest.TestCase):
             self.assertIn(candidate_merge_scenario, target_merge_scenarios)
 
     def test_should_generate_target_cherry_pick_scenarios(self):
-        os.chdir('../..')
-        path_to_repositories = os.path.join(os.getcwd(), 'repos')
-
-        demo_repo = Repo(os.path.join(path_to_repositories, 'mixed-file-types-demo.git'))
-        os.chdir(os.path.join(path_to_repositories, 'mixed-file-types-demo.git'))
+        demo_repo = Repo(os.path.join(self.path_to_repositories, 'mixed-file-types-demo.git'))
+        os.chdir(os.path.join(self.path_to_repositories, 'mixed-file-types-demo.git'))
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.TEXT,
