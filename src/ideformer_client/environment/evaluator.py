@@ -79,8 +79,9 @@ class Evaluator:
         if err_code != 0:
             raise ScenarioEnvironmentException(f"Cannot evaluate scenario: {output.decode('utf-8')}")
 
-        return self._can_be_cast_to_int(output.decode("utf-8").strip()) and int(
-            output.decode("utf-8").strip()) > 1
+        cleaned_output = output.decode("utf-8").strip()
+
+        return self._can_be_cast_to_int(cleaned_output) and int(cleaned_output) > 1
 
     def _evaluate_clean_local_branch_before_push(self):
         """
@@ -107,8 +108,10 @@ class Evaluator:
         if err_code != 0:
             raise ScenarioEnvironmentException(f"Cannot evaluate scenario: {output.decode('utf-8')}")
 
-        return self._can_be_cast_to_int(output.decode("utf-8").strip()) and int(
-            output.decode("utf-8").strip()) <= self.scenario['times_seen_consecutively']
+        cleaned_output = output.decode("utf-8").strip()
+
+        return (self._can_be_cast_to_int(cleaned_output) and 0 < int(cleaned_output) <= self.scenario[
+            'times_seen_consecutively'])
 
     def _get_git_file_commit_gram_evaluation_command(self):
         """
