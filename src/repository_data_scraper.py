@@ -130,14 +130,6 @@ class RepositoryDataScraper:
 
                 changes_in_commit = self._get_changes_in_commit(commit)
 
-                # TODO: Right now I am maintaining file-commit grams within the provided programming language.
-                #       This is however an unrealistic scenario. We want to find ACTUAL file-commit grams that
-                #       are directly consecutive across all commits and file types.
-
-                # TODO: We need to ensure that we DO NOT collect for file types other than the specified programming
-                #       language, but DO consider other file types when determining whether a file-commit gram has
-                #       broken down or not.
-
                 # At this point the commit metadata such as the message are trimmed
                 # Each line represents one file that was changed. This means each line contains the change type and
                 # relative filepath. Thus, it is safe to simply search list string for file endings.
@@ -151,22 +143,7 @@ class RepositoryDataScraper:
                                         does_commit_contain_changes_in_programming_language):
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
                                            'parents': [parent.hexsha for parent in commit.parents]}
-                # TODO remove prog lang here? How does this affect the system?
-                #   I think this should work. I am explicitly checking the programming language for every file
-                #   in the commit before adding it to the files that need to be maintained
-                #
-                # TODO Then after checking the commit, I iterate of the state of the current branch and check which
-                #   files were present in a commit. If the commit did not contain any files of the target programming
-                #   language all file-commit grams of the current state are terminated, which is exactly what I am
-                #   trying to accomplish with this refactoring/update
 
-                # TODO Actually come to think of it, I should just always process the commit. Regardless of change
-                #   types or programming language. I am checking for change type and programming language within the commit
-                #   anyways. This parent level meta-check was just intended to to save some compute, but for true
-                #   file-commit grams I need to have the ability to terminate file-commit grams after EVERY commit.
-                #   This is because a file-commit gram can be terminated by a commit that does not contain any valid
-                #   changes of the desired programming language. In this case I dont need to add onto the state or
-                #   update tracking for existing file-commit grams, but I do need to terminate all existing ones.
                 affected_files = []
 
                 for change_in_commit in changes_in_commit:

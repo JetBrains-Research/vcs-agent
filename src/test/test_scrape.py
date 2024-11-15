@@ -51,6 +51,33 @@ class ScrapeTestCase(unittest.TestCase):
         for candidate_file_commit_gram in candidate_file_commit_grams:
             self.assertIn(candidate_file_commit_gram, target_file_commit_grams)
 
+    def test_should_generate_target_file_commit_grams_in_mixed_file_type_setting(self):
+        os.chdir('../..')
+        path_to_repositories = os.path.join(os.getcwd(), 'repos')
+
+        demo_repo = Repo(os.path.join(path_to_repositories, 'strict-file-commit-grams'))
+        os.chdir(os.path.join(path_to_repositories, 'strict-file-commit-grams'))
+
+        self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
+                                                             programming_language=ProgrammingLanguage.PYTHON,
+                                                             repository_name='demo-repo',
+                                                             sliding_window_size=2)
+
+        target_file_commit_grams = [{
+            'file': 'foo.py',
+            'branch': 'main',
+            'first_commit': '7e8a9e5487752e4500a545b0b39b60412685cd4a',
+            'last_commit': '4721e6cb6f7aeb4775f975fb38a87fc0b6319c80',
+            'times_seen_consecutively': 2}]
+
+        self.repository_data_scraper.scrape()
+        candidate_file_commit_grams = self.repository_data_scraper.accumulator['file_commit_gram_scenarios']
+
+        self.assertEqual(len(candidate_file_commit_grams), len(target_file_commit_grams))
+
+        for candidate_file_commit_gram in candidate_file_commit_grams:
+            self.assertIn(candidate_file_commit_gram, target_file_commit_grams)
+
     def test_accumulator_should_not_contain_grams_of_invalid_file_type(self):
         os.chdir('../..')
         path_to_repositories = os.path.join(os.getcwd(), 'repos')
