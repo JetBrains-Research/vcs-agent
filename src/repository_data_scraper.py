@@ -144,28 +144,27 @@ class RepositoryDataScraper:
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
                                            'parents': [parent.hexsha for parent in commit.parents]}
 
-                if self._should_process_commit(changes_in_commit, valid_change_types):
-                    affected_files = []
+                affected_files = []
 
-                    for change_in_commit in changes_in_commit:
-                        changes_to_unpack = change_in_commit.split('\t')
+                for change_in_commit in changes_in_commit:
+                    changes_to_unpack = change_in_commit.split('\t')
 
-                        # Only process valid change_types
-                        if changes_to_unpack[0] not in valid_change_types:
-                            continue
+                    # Only process valid change_types
+                    if changes_to_unpack[0] not in valid_change_types:
+                        continue
 
-                        # Only maintain a state for files of required programming_language
-                        change_type, file = changes_to_unpack
-                        if self.programming_language.value not in file:
-                            continue
+                    # Only maintain a state for files of required programming_language
+                    change_type, file = changes_to_unpack
+                    if self.programming_language.value not in file:
+                        continue
 
-                        affected_files.append(file)
+                    affected_files.append(file)
 
-                        if is_merge_commit and change_type == 'MM':
-                            merge_commit_sample['had_conflicts'] = True
+                    if is_merge_commit and change_type == 'MM':
+                        merge_commit_sample['had_conflicts'] = True
 
-                        self._maintain_state_for_change_in_commit(branch, commit, file)
-                    self._remove_stale_file_states(affected_files, branch)
+                    self._maintain_state_for_change_in_commit(branch, commit, file)
+                self._remove_stale_file_states(affected_files, branch)
 
                 if is_merge_commit and merge_commit_sample:
                     self.accumulator['merge_scenarios'].append(merge_commit_sample)

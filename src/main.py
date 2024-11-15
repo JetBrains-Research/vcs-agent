@@ -132,7 +132,7 @@ def main():
     else:
         raise ValueError("Invalid programming language. Unable to determine programming language to filter for.")
 
-    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:100]
+    smaller_repositories_metadata = repositories_metadata[repositories_metadata['branches'] < 100].iloc[:1]
     smaller_repositories_metadata.loc[:, 'error'] = None
     results = []
     paths_to_directories_to_remove = []
@@ -167,7 +167,7 @@ def main():
                 print(f'Exception occurred: {traceback.format_exc()}', flush=True)
 
     repositories_metadata = pd.concat(results, axis=1).T
-    repositories_metadata.to_parquet(os.path.join(path_to_data, 'testing.parquet'), engine='pyarrow')
+    repositories_metadata.to_parquet(os.path.join(path_to_data, 'testing_refactor_file_commit_gram_def.parquet'), engine='pyarrow')
 
     # Clean up any remaining repositories created by the scraping process in the repository directory
     for path_to_directory in paths_to_directories_to_remove:
