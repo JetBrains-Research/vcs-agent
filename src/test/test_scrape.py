@@ -56,16 +56,16 @@ class ScrapeTestCase(unittest.TestCase):
 
     def test_should_generate_target_file_commit_grams_in_mixed_file_type_setting(self):
         os.chdir('../..')
-        path_to_repositories = os.path.join(os.getcwd(), 'repos')
 
-        demo_repo = Repo(os.path.join(path_to_repositories, 'strict-file-commit-grams'))
-        os.chdir(os.path.join(path_to_repositories, 'strict-file-commit-grams'))
+        demo_repo = Repo(os.path.join(self.path_to_repositories, 'strict-file-commit-grams'))
+        os.chdir(os.path.join(self.path_to_repositories, 'strict-file-commit-grams'))
 
         self.repository_data_scraper = RepositoryDataScraper(repository=demo_repo,
                                                              programming_language=ProgrammingLanguage.PYTHON,
                                                              repository_name='demo-repo',
                                                              sliding_window_size=2)
-
+        # File-commit gram of supported ProgrammingLanguage should NOT encompass noisy commits of other file
+        # types (e.g., .md, .json, .csv, ...)
         target_file_commit_grams = [{
             'file': 'foo.py',
             'branch': 'main',
