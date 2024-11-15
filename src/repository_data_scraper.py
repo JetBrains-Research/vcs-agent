@@ -130,6 +130,14 @@ class RepositoryDataScraper:
 
                 changes_in_commit = self._get_changes_in_commit(commit)
 
+                # TODO: Right now I am maintaining file-commit grams within the provided programming language.
+                #       This is however an unrealistic scenario. We want to find ACTUAL file-commit grams that
+                #       are directly consecutive across all commits and file types.
+
+                # TODO: We need to ensure that we DO NOT collect for file types other than the specified programming
+                #       language, but DO consider other file types when determining whether a file-commit gram has
+                #       broken down or not.
+
                 # At this point the commit metadata such as the message are trimmed
                 # Each line represents one file that was changed. This means each line contains the change type and
                 # relative filepath. Thus, it is safe to simply search list string for file endings.
@@ -143,29 +151,43 @@ class RepositoryDataScraper:
                                         does_commit_contain_changes_in_programming_language):
                     merge_commit_sample = {'merge_commit_hash': commit.hexsha, 'had_conflicts': False,
                                            'parents': [parent.hexsha for parent in commit.parents]}
+                # TODO remove prog lang here? How does this affect the system?
+                #   I think this should work. I am explicitly checking the programming language for every file
+                #   in the commit before adding it to the files that need to be maintained
+                #
+                # TODO Then after checking the commit, I iterate of the state of the current branch and check which
+                #   files were present in a commit. If the commit did not contain any files of the target programming
+                #   language all file-commit grams of the current state are terminated, which is exactly what I am
+                #   trying to accomplish with this refactoring/update
 
-                if self._should_process_commit(changes_in_commit, valid_change_types):
-                    affected_files = []
+                # TODO Actually come to think of it, I should just always process the commit. Regardless of change
+                #   types or programming language. I am checking for change type and programming language within the commit
+                #   anyways. This parent level meta-check was just intended to to save some compute, but for true
+                #   file-commit grams I need to have the ability to terminate file-commit grams after EVERY commit.
+                #   This is because a file-commit gram can be terminated by a commit that does not contain any valid
+                #   changes of the desired programming language. In this case I dont need to add onto the state or
+                #   update tracking for existing file-commit grams, but I do need to terminate all existing ones.
+                affected_files = []
 
-                    for change_in_commit in changes_in_commit:
-                        changes_to_unpack = change_in_commit.split('\t')
+                for change_in_commit in changes_in_commit:
+                    changes_to_unpack = change_in_commit.split('\t')
 
-                        # Only process valid change_types
-                        if changes_to_unpack[0] not in valid_change_types:
-                            continue
+                    # Only process valid change_types
+                    if changes_to_unpack[0] not in valid_change_types:
+                        continue
 
-                        # Only maintain a state for files of required programming_language
-                        change_type, file = changes_to_unpack
-                        if self.programming_language.value not in file:
-                            continue
+                    # Only maintain a state for files of required programming_language
+                    change_type, file = changes_to_unpack
+                    if self.programming_language.value not in file:
+                        continue
 
-                        affected_files.append(file)
+                    affected_files.append(file)
 
-                        if is_merge_commit and change_type == 'MM':
-                            merge_commit_sample['had_conflicts'] = True
+                    if is_merge_commit and change_type == 'MM':
+                        merge_commit_sample['had_conflicts'] = True
 
-                        self._maintain_state_for_change_in_commit(branch, commit, file)
-                    self._remove_stale_file_states(affected_files, branch)
+                    self._maintain_state_for_change_in_commit(branch, commit, file)
+                self._remove_stale_file_states(affected_files, branch)
 
                 if is_merge_commit and merge_commit_sample:
                     self.accumulator['merge_scenarios'].append(merge_commit_sample)
