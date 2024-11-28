@@ -61,9 +61,9 @@ class Evaluator:
         all the original changes are still present.
 
         Evaluates to True if:
-            - Agent made >1 commit
+            - Agent made > 1 commit
             - The state of the agent's branch HEAD is the same (diff is empty) as the chronologically newest commit
-                in the scenario (scenario['first_commit'])
+                in the scenario (scenario['first_commit']), ie agent did not introduce changes in the code.
 
         Raises:
             ScenarioEnvironmentException: If there is an error executing the command inside the container.
@@ -79,9 +79,9 @@ class Evaluator:
         if err_code != 0:
             raise ScenarioEnvironmentException(f"Cannot evaluate scenario: {output.decode('utf-8')}")
 
-        cleaned_output = output.decode("utf-8").strip()
+        amount_of_commits_made_by_agent = output.decode("utf-8").strip()
 
-        return self._can_be_cast_to_int(cleaned_output) and int(cleaned_output) > 1
+        return self._can_be_cast_to_int(amount_of_commits_made_by_agent) and int(amount_of_commits_made_by_agent) > 1
 
     def _evaluate_clean_local_branch_before_push(self):
         """
@@ -119,7 +119,8 @@ class Evaluator:
 
         Constructs a shell command to perform two git operations:
         1. Display differences between the scenario's first commit and the agent's target branch HEAD for a given file.
-        2. Count the number of commits between the scenario's last commit and the agent's target branch HEAD.
+        2. Count the number of commits between the scenario's last commit and the agent's target branch HEAD. The output is
+            0-based, so it only counts commits ontop of self.scenario['last_commit'], excluding that commit.
 
         Returns:
             str: The constructed shell command to execute the described git operations.
