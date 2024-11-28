@@ -259,7 +259,7 @@ class ScenarioEnvironmentManager:
         Sets up the environment of the Docker container for iteratively chunking the staged difference in the repository into multiple commits.
 
         Checks out the first (ie. chronologically newest) commit in the scenario and then soft resets the changes of the file
-        specified in the scenario to stage the differences between the first (ie. newest) and last (ie. oldest) commit.
+        specified in the scenario to stage all changes between the first (ie. newest) and last (ie. oldest) commit, both inclusive.
 
 
         Raises:
@@ -270,7 +270,7 @@ class ScenarioEnvironmentManager:
                                                    privileged=False, workdir=self.repository_work_dir)
         if err_code == 0:
             # Reset only the changes made to the file concerning the scenario such that they are staged
-            reset_command = f"git checkout {self.scenario['last_commit']} -- {self.scenario['file']}"
+            reset_command = f"git checkout HEAD~{self.scenario['times_seen_consecutively']} -- {self.scenario['file']}"
             err_code, output = self.container.exec_run(self.command_template.format(command_to_execute=reset_command),
                                                        privileged=False, workdir=self.repository_work_dir)
             if err_code != 0:
