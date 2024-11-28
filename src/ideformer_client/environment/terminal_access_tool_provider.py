@@ -20,9 +20,8 @@ class TerminalAccessToolImplementationProvider(ToolImplementationProvider):
             bash_timeout: Optional[int],
             max_num_chars_bash_output: Optional[int],
             workdir: str,
-            tools_list_endpoint="__tools_list__",
     ):
-        super().__init__(tools_list_endpoint=tools_list_endpoint)
+        super().__init__()
 
         self.error_message = error_message or self.DEFAULT_ERROR
         self.bash_timeout = bash_timeout
