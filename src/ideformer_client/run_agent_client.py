@@ -5,7 +5,7 @@ import os
 from grazie.api.client.profiles import Profile
 from grazie.cloud_tools_v2.authorization import AuthType, AuthVersion
 from grazie.common.core.log import setup_logging
-from ideformer.client.agents.simple_grazie_chat_runner import IdeFormerSimpleGrazieChatRunner
+from ideformer.client.agents.simple_grazie_oneshot_runner import IdeFormerSimpleGrazieOneShotRunner
 from ideformer.client.client import IdeFormerClient
 
 from src.ideformer_client.data.prompt_provider import PromptProvider
@@ -47,8 +47,6 @@ async def main():
     container = docker_manager.start_container()
 
     for repository in git_dataset_provider.stream_repositories():
-        scenario_type: ScenarioType = ScenarioType.FILE_COMMIT_GRAM_CHUNK # TODO iterate or pass as cmd arg?
-        scenarios = git_dataset_provider.get_scenarios_for(scenario_type=scenario_type)
         j = 0
 
         try:
@@ -69,6 +67,7 @@ async def main():
                               repository_work_dir=scenario_environment_manager.repository_work_dir)
         for scenario_type in ScenarioType:
             k=0
+            scenarios = git_dataset_provider.get_scenarios_for(scenario_type=scenario_type)
             for scenario in scenarios:
                 # Ensure that we actually have > 0 scenarios of scenario_type for the current repository
                 if len(scenarios) == 0:
@@ -117,7 +116,7 @@ async def main():
                     client_agent_version="dev",  # can be any
                 )
 
-                runner = IdeFormerSimpleGrazieChatRunner(
+                runner = IdeFormerSimpleGrazieOneShotRunner(
                     system_prompt=system_prompt,
                     user_prompt=user_prompt,
                     client=client,
