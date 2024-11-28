@@ -11,7 +11,7 @@ class PromptProvider:
                         'and cohesive as possible. Base your decisions on Clean Code principles, design patterns and system design '
                         'and act as a staff senior software engineer would. Your task is to split the diff into as many'
                         'commits as are needed for the diff to be coherent and cohesive, but always into > 1 commit.'
-                        'Create these commits exclusively on in the "{agent_target_branch}" branch.'
+                        'Create these commits exclusively on in the "{agent_target_branch_name}" branch.'
                         ''
                         'Here is some context about the current state of the repository:'
                         '{context}')
@@ -24,7 +24,7 @@ class PromptProvider:
                               'verify that the resulting commit history is concise, readable, and free of conflicts.'
                               'Use the exact commits specified and pay attention to use the correct hashes.'
                            ''
-                           'Create these commits exclusively on in the "{agent_target_branch}" branch.'
+                           'Create these commits exclusively on in the "{agent_target_branch_name}" branch.'
                            ''
                            'Here is some context about the current state of the repository:'
                            '{context}')
