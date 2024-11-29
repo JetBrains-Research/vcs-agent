@@ -55,8 +55,6 @@ class Evaluator:
 
     def _evaluate_iteratively_chunk_staged_diff_into_commits(self):
         """
-        Evaluates the agent's solution to the task of iteratively chunking the staged diff.
-
         Checks whether the agent successfully split the large staged diff into multiple commits and whether
         all the original changes are still present.
 
@@ -85,21 +83,19 @@ class Evaluator:
 
     def _evaluate_clean_local_branch_before_push(self):
         """
-            Evaluates the agent's solution to the task of cleaning the local branch (interactive rebase) before pushing.
+        Checks whether the agent successfully cleaned the local branch and whether all the original changes are still present.
 
-            Checks whether the agent successfully cleaned the local branch and whether all the original changes are still present.
+        Evaluates to True if:
+            - Agent branch has < scenario['times_seen_consecutively'] commits
+            - The state of the agent's branch HEAD is the same (diff is empty) as the chronologically newest commit
+                in the scenario (scenario['first_commit'])
 
-            Evaluates to True if:
-                - Agent branch has < scenario['times_seen_consecutively'] commits
-                - The state of the agent's branch HEAD is the same (diff is empty) as the chronologically newest commit
-                    in the scenario (scenario['first_commit'])
+        Raises:
+            ScenarioEnvironmentException: If there is an error executing the command inside the container.
 
-            Raises:
-                ScenarioEnvironmentException: If there is an error executing the command inside the container.
-
-            Returns:
-                bool: True if the agent correctly condensed changes into < scenario['times_seen_consecutively'] commits
-                    and if the commits contain all of the original data, otherwise False.
+        Returns:
+            bool: True if the agent correctly condensed changes into < scenario['times_seen_consecutively'] commits
+                and if the commits contain all of the original data, otherwise False.
         """
         err_code, output = self.container.exec_run(
             self.command_template.format(command_to_execute=self._get_git_file_commit_gram_evaluation_command()),
