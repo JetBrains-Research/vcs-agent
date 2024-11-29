@@ -56,6 +56,10 @@ class ScenarioEnvironmentManager:
             self._setup_iteratively_chunk_staged_diff_into_commits()
         elif self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
             self._setup_clean_local_branch_before_push()
+        elif self.scenario_type is ScenarioType.MERGE:
+            self._setup_merge()
+        elif self.scenario_type is ScenarioType.CHERRY_PICK:
+            self._setup_cherry_pick()
         else:
             raise NotImplementedError(
                 f'Currently only supporting ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_CHUNK.name}'
@@ -295,21 +299,42 @@ class ScenarioEnvironmentManager:
             raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['first_commit']}. Docker "
                                                      f"error code: {err_code}.")
 
+    def _checkout_commit(self, commit: str):
+        """
+        Args:
+            commit: The specific commit hash or identifier to be checked out in the git repository.
+
+        Raises: ScenarioEnvironmentException: If the checkout command fails.
+        """
+        checkout_command = f"git checkout {commit}"
+        err_code, output = self.container.exec_run(self.command_template.format(command_to_execute=checkout_command),
+                                                   privileged=False, workdir=self.repository_work_dir)
+        if err_code != 0:
+            raise ScenarioEnvironmentException(f"Cannot check out commit: {commit}. "
+                                               f"Docker error code: {err_code}.")
+        else:
+            logging.info(f'Scenario precondition for {self.scenario_type} successfully set up.')
 
     def _setup_clean_local_branch_before_push(self):
         """
-        Sets up the environment of the Docker container for cleaning the local tree (ie. rebase) in the repository before pushing.
-
         Checks out the first (ie. chronologically newest) commit in the scenario.
 
         Raises:
             ScenarioEnvironmentException: If the checkout command fails.
         """
-        checkout_command = f"git checkout {self.scenario['first_commit']}"
-        err_code, output = self.container.exec_run(self.command_template.format(command_to_execute=checkout_command),
-                                                   privileged=False, workdir=self.repository_work_dir)
-        if err_code != 0:
-            raise ScenarioEnvironmentException(f"Cannot check out commit: {self.scenario['first_commit']}. "
-                                                     f"Docker error code: {err_code}.")
-        else:
-            logging.info(f'Scenario precondition for {self.scenario_type} successfully set up.')
+        self._checkout_commit(self.scenario['first_commit'])
+
+    def _setup_merge(self):
+        """
+        Checks out the first parent commit in the scenario.
+
+        Note that which parent is checked out may impact system performance on these samples, since LLMs
+        are sensitive to ordering.
+
+        Raises:
+            ScenarioEnvironmentException: If the checkout command fails.
+        """
+        self._checkout_commit(self.scenario['parents'][0])
+
+    def _setup_cherry_pick(self):
+        pass
