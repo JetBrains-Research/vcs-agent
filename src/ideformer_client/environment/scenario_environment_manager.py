@@ -337,4 +337,10 @@ class ScenarioEnvironmentManager:
         self._checkout_commit(self.scenario['parents'][0])
 
     def _setup_cherry_pick(self):
-        pass
+        """
+        Checks out the first parent commit in the scenario. In cherry-pick scenarios there should only be one parent.
+
+        Raises:
+            ScenarioEnvironmentException: If the checkout command fails.
+        """
+        self._checkout_commit(self.scenario['parents'][0])
