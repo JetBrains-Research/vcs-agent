@@ -48,6 +48,10 @@ class Evaluator:
             return self._evaluate_iteratively_chunk_staged_diff_into_commits()
         elif self.scenario_type is ScenarioType.FILE_COMMIT_GRAM_REBASE:
             return self._evaluate_clean_local_branch_before_push()
+        elif self.scenario_type is ScenarioType.MERGE:
+            return self._evaluate_merge()
+        elif self.scenario_type is ScenarioType.CHERRY_PICK:
+            return self._evaluate_cherry_pick()
         else:
             raise NotImplementedError(
                 f'Currently only supporting ScenarioType.{ScenarioType.FILE_COMMIT_GRAM_CHUNK.name}'
@@ -108,6 +112,42 @@ class Evaluator:
 
         return (self._can_be_cast_to_int(cleaned_output) and 0 < int(cleaned_output) <= self.scenario[
             'times_seen_consecutively'])
+
+    def _evaluate_merge(self):
+        """
+        Checks whether the agent successfully performed the merge and did not introduce any unwanted changes
+        when resolving a merge conflict.
+
+        Evaluates to True if the state of the agent's branch HEAD is the same (diff is empty) as the ground truth merge commit.
+        This implicitly also evaluates whether a merge was carried out at all, because if that is not the case, there
+        would be a diff.
+
+        Raises:
+            ScenarioEnvironmentException: If there is an error executing the command inside the container.
+
+        Returns:
+            bool: True if the agent carried out the merge and did not introduce unwanted changes with respect
+                to the ground truth merge commit, otherwise False.
+        """
+        err_code, output = self.container.exec_run(
+            self.command_template.format(command_to_execute=self._get_git_merge_evaluation_command()),
+            privileged=False, workdir=self.repository_work_dir)
+
+        if err_code != 0:
+            raise ScenarioEnvironmentException(f"Cannot evaluate scenario: {output.decode('utf-8')}")
+
+        diff = output.decode("utf-8").strip()
+
+        return diff == ''
+
+    def _get_git_merge_evaluation_command(self):
+        """
+        Returns the differences between the scenario's ground truth merge commit and the agent's target branch HEAD.
+
+        Returns:
+            str: The constructed shell command to execute the described git operations.
+        """
+        return f"git diff {self.scenario['merge_commit_hash']} {self.agent_target_branch_name}"
 
     def _get_git_file_commit_gram_evaluation_command(self):
         """
