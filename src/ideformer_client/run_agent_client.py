@@ -87,6 +87,7 @@ async def main():
 
                 try:
                     scenario_context = scenario_environment_manager.provide_scenario_context()
+                    scenario_context['programming_language'] = repository.programming_language
                     user_prompt = PromptProvider.get_prompt_for(scenario_type, scenario, context=scenario_context,
                                                                 agent_target_branch_name=ScenarioEnvironmentManager.AGENT_TARGET_BRANCH_NAME)
                 except ScenarioEnvironmentException as e:

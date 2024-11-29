@@ -36,6 +36,14 @@ class PromptProvider:
     #                        'Here is some context about the current state of the repository:'
     #                        '{context}')
 
+    _USER_PROMPT_MERGE = ('You are a staff software engineer with expertise in {programming_language} and git. '
+                          'Your task is to merge the following commit(s) {parents} into the currently checked out branch. '
+                          'Use the "git merge" command and note that you can merge multiple commits at once by using the octopus merge. '
+                          'For example: "git merge branch branch1 branch2 branch3" will merge these three branches into the currently '
+                          'checked out branch. NEVER USE CHERRY-PICKS UNDER ANY CIRCUMSTANCE.'
+                          'If any merge conflicts occur resolve them to the best of your ability. Once the conflicts are resolved '
+                          'and the merge is completed you are done.\n\n')
+
     _SYSTEM_PROMPT = dedent("""
                 You MUST follow the instructions for answering:
                 - You are an agent which can operate with the command line and change the file system.
@@ -61,8 +69,8 @@ class PromptProvider:
             scenario_type (ScenarioType): The type of scenario to get the prompt for.
             scenario (Dict): The actual specifications of the scenario for the given scenario type.
             context (Optional[Dict]): Additional context for the model to orient itself in the repository. E.g.: git status,
-                git diff --cached, truncated git log etc. The keys of this dictionary are the commands in snake case
-                without any dashes or underscores from the original commands.
+                git diff --cached, truncated git log etc. The keys of git outputs in this dictionary are the commands in snake case
+                without any dashes or underscores from the original commands. May also contain other context.
             agent_target_branch_name (Optional[str]): The name of the branch on which the agent should carry out its actions.
 
         Raises:
@@ -81,7 +89,9 @@ class PromptProvider:
             return cls._USER_PROMPT_REBASE.format(context=context, agent_target_branch_name=agent_target_branch_name,
                                                   scenario_first_commit=scenario['first_commit'])
         elif scenario_type is ScenarioType.MERGE:
-            return NotImplementedError
+            return cls._USER_PROMPT_MERGE.format(agent_target_branch_name=agent_target_branch_name,
+                                                 parents=scenario['parents'][1:],
+                                                 programming_language=context['programming_language'])
         elif scenario_type is ScenarioType.CHERRY_PICK:
             return NotImplementedError
         else:
