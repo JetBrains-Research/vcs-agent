@@ -18,6 +18,15 @@ from src.ideformer_client.utils.exceptions import ScenarioEnvironmentException
 from src.ideformer_client.environment.scenario_type import ScenarioType
 from src.ideformer_client.environment.terminal_access_tool_provider import TerminalAccessToolImplementationProvider
 
+def _create_scenario_dict():
+    """
+    Helper function for creating a dictionary to store run statistics on a ScenarioType granularity.
+
+    Returns:
+        dict: A dictionary mapping each ScenarioType to a data structure
+        containing a count and a list of scenarios.
+    """
+    return {scenario_type.value: {'count': 0, 'scenarios': []} for scenario_type in ScenarioType}
 
 async def main():
     setup_logging(log_to_stderr=False, level=logging.INFO)
@@ -27,15 +36,7 @@ async def main():
 
     i = 0
 
-    run_statistics = {'successes': {ScenarioType.FILE_COMMIT_GRAM_CHUNK.value: 0,
-                        ScenarioType.FILE_COMMIT_GRAM_REBASE.value: 0,
-                        ScenarioType.MERGE.value: 0,
-                        ScenarioType.CHERRY_PICK.value: 0},
-                      'totals': {ScenarioType.FILE_COMMIT_GRAM_CHUNK.value: 0,
-                        ScenarioType.FILE_COMMIT_GRAM_REBASE.value: 0,
-                        ScenarioType.MERGE.value: 0,
-                        ScenarioType.CHERRY_PICK.value: 0}
-                      }
+    run_statistics = {'successes': _create_scenario_dict(), 'totals': _create_scenario_dict()}
 
     docker_manager = DockerManager(
         image='tolindenba/ytsaurus:python-3.10',
@@ -132,13 +133,17 @@ async def main():
                 # Evaluate
                 evaluator.set_scenario(scenario)
                 evaluator.set_scenario_type(scenario_type)
+
+                scenario['repository'] = repository.name
                 if evaluator.evaluate():
                     logging.info('Yay, successfully resolved this scenario!')
-                    run_statistics['successes'][scenario_type.value] += 1
+                    run_statistics['successes'][scenario_type.value]['count'] += 1
+                    run_statistics['successes'][scenario_type.value]['scenarios'].append(scenario)
                 else:
                     logging.info('Could not resolve this scenario.')
 
-                run_statistics['totals'][scenario_type.value] += 1
+                run_statistics['totals'][scenario_type.value]['count'] += 1
+                run_statistics['totals'][scenario_type.value]['scenarios'].append(scenario)
 
                 try:
                     scenario_environment_manager.teardown_scenario()
@@ -149,7 +154,7 @@ async def main():
                         scenario_environment_manager.teardown_repository()
                         scenario_environment_manager.setup_repository()
                     except ScenarioEnvironmentException:
-                        logging.error(f'Could not recover for scenario: {scenario} in repository {repository}. Continuing with the next repository.')
+                        logging.error(f'Could not recover for scenario: {scenario}. Continuing with the next repository.')
                         break
                 # Limit to two scenarios
                 k += 1
