@@ -44,6 +44,12 @@ class PromptProvider:
                           'If any merge conflicts occur resolve them to the best of your ability. Once the conflicts are resolved '
                           'and the merge is completed you are done.\n\n')
 
+    _USER_PROMPT_CHERRY_PICK = ('You are a staff software engineer with expertise in {programming_language} and git. '
+                          'Your task is to cherry pick the following commit {cherry_commit} into the currently checked out branch. '
+                          'Use the "git cherry-pick" command. '
+                          'If any merge conflicts occur resolve them to the best of your ability. Once the conflicts are resolved '
+                          'and the merge is completed you are done.\n\n')
+
     _SYSTEM_PROMPT = dedent("""
                 You MUST follow the instructions for answering:
                 - You are an agent which can operate with the command line and change the file system.
@@ -89,10 +95,10 @@ class PromptProvider:
             return cls._USER_PROMPT_REBASE.format(context=context, agent_target_branch_name=agent_target_branch_name,
                                                   scenario_first_commit=scenario['first_commit'])
         elif scenario_type is ScenarioType.MERGE:
-            return cls._USER_PROMPT_MERGE.format(agent_target_branch_name=agent_target_branch_name,
-                                                 parents=scenario['parents'][1:],
+            return cls._USER_PROMPT_MERGE.format(parents=scenario['parents'][1:],
                                                  programming_language=context['programming_language'])
         elif scenario_type is ScenarioType.CHERRY_PICK:
-            return NotImplementedError
+            return cls._USER_PROMPT_CHERRY_PICK.format(cherry_commit=scenario['cherry_commit'],
+                                                 programming_language=context['programming_language'])
         else:
             return ValueError('No other scenarios are valid.')
