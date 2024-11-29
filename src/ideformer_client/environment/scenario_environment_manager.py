@@ -131,18 +131,20 @@ class ScenarioEnvironmentManager:
 
     def provide_scenario_context(self):
         """
-        Provides context on the current state of the environment
+        The keys for the context are the commands in snake case, without any dashes or underscores from the original commands.
 
         Currently includes:
             - git status
+            - git diff --cached
 
         Returns:
-            str: A formatted string containing a summary of the current state of the environment
+            dict: A dictionary containing the outputs of executing the supported git commands. The keys are the commands
+                in snake case without dashes or underscores.
 
         Raises:
-            ScenarioEnvironmentException: If the context cannot be fetched (git status fails).
+            ScenarioEnvironmentException: If the context cannot be fetched (any command fails).
         """
-        return self._run_git_status()
+        return {'git_status': self._run_git_status(), 'git_diff_cached': self._run_git_diff_cached()}
 
     def _clone_repository(self):
         """
@@ -213,13 +215,6 @@ class ScenarioEnvironmentManager:
 
     def _run_git_status(self):
         """
-        Executes the `git status` command in a Docker container and returns its output.
-
-        This method runs the `git status` command in the specified working directory
-        of a Docker container. If the command is executed successfully, its output
-        is decoded and returned. Otherwise, a ScenarioEnvironmentException is raised
-        with the corresponding Docker error code.
-
         Returns:
             str: The output of the `git status` command if successful.
 
@@ -228,6 +223,22 @@ class ScenarioEnvironmentManager:
         """
         err_code, output = self.container.exec_run(
             '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git status'),
+            privileged=False, workdir=self.repository_work_dir)
+        if err_code == 0:
+            return output.decode("utf-8")
+        else:
+            raise ScenarioEnvironmentException(f"Cannot get git status. Docker error code: {err_code}.")
+
+    def _run_git_diff_cached(self):
+        """
+        Returns:
+            str: The output of the `git diff --cached` command if successful.
+
+        Raises:
+            ScenarioEnvironmentException: If the execution of the `git status` command in the Docker container fails.
+        """
+        err_code, output = self.container.exec_run(
+            '/bin/bash -c "{command_to_execute}"'.format(command_to_execute='git diff --cached'),
             privileged=False, workdir=self.repository_work_dir)
         if err_code == 0:
             return output.decode("utf-8")

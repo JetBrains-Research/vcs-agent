@@ -92,7 +92,7 @@ async def main():
                     logging.error(f"Could not fetch scenario context for repository {repository.name}, scenario type "
                                   f"{scenario_type} and\nscenario{scenario}:\n{e}\n"
                                   'Proceeding without context.')
-                    user_prompt = PromptProvider.get_prompt_for(scenario_type, scenario, context='unavailable',
+                    user_prompt = PromptProvider.get_prompt_for(scenario_type, scenario, context=None,
                                                                 agent_target_branch_name=ScenarioEnvironmentManager.AGENT_TARGET_BRANCH_NAME)
 
                 logging.debug(f'Current scenario is given by:\nRepository: {repository.name}\nScenario type: {scenario_type}'
