@@ -11,6 +11,10 @@ python = "~3.10"
 client-ideformer = {version = "^1.0.0", source = "space-ai-agents"}
 docker = "^7.1.0"
 coverage = "^7.6.4"
+pandas = "^2.2.3"
+ytsaurus-client = "~0.13.20"
+ytsaurus-yson = "~0.4.9"
+matplotlib = "~3.9.3"
 
 [tool.poetry.group.ytsaurus.dependencies]
 ytsaurus-client = "~0.13.17"
