@@ -14,12 +14,12 @@ def parse_table_into_dataframe(table_path: str) -> pd.DataFrame:
 
     return pd.DataFrame([asdict(row) for row in dataset])
 
-def parse_table_into_csv_at(output_path: str, yt_client: yt.YtClient, table_path: str):
-    dataset_df = parse_table_into_dataframe(yt_client)
+def parse_table_into_csv_at(output_path: str, table_path: str):
+    dataset_df = parse_table_into_dataframe(table_path)
     dataset_df.to_csv(output_path)
 
 def remove_duplicates_in(table_path: str, yt_client: yt.YtClient):
-    dataset_df = parse_table_into_dataframe(yt_client)
+    dataset_df = parse_table_into_dataframe(table_path)
     dataset_df.drop_duplicates(inplace=True)
 
     yt_client.remove(table_path)
