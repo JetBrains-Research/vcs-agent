@@ -1,7 +1,8 @@
+import ast
 import os
 import shutil, stat
 import sys
-
+from pandas import isna
 from src.yt_scripts.schemas import DummyRow, RepositoryDataRow
 from typing import Iterable
 import yt.wrapper as yt
@@ -87,3 +88,20 @@ class RepositoryDataMapper(yt.TypedJob):
         finally:
             yield row
 
+class ErrorFilteringMapper(yt.TypedJob):
+
+    def __call__(self, row: RepositoryDataRow) -> Iterable[RepositoryDataRow]:
+        parsed_cherry_pick_scenarios = ast.literal_eval(row.cherry_pick_scenarios) if row.cherry_pick_scenarios \
+                                        not in ['None', 'none', 'nan', 'NaN'] and not isna(row.cherry_pick_scenarios) else []
+
+        # No cherry pick scenarios available in this repository
+        if not parsed_cherry_pick_scenarios:
+            yield row
+
+
+        parsed_cherry_pick_scenarios = [cherry_pick_scenario for cherry_pick_scenario in parsed_cherry_pick_scenarios \
+                                        if len(cherry_pick_scenario['parents']) == 1]
+
+        row.cherry_pick_scenarios = str(parsed_cherry_pick_scenarios)
+        if not row.error:
+            yield row
