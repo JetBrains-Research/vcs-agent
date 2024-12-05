@@ -1,0 +1,31 @@
+[tool.poetry]
+name = "vcs-agent"
+version = "0.1.0"
+description = ""
+authors = ["Tobias.Lindenbauer <tobias.lindenbauer@jetbrains.com>"]
+readme = "README.md"
+package-mode = false
+
+[tool.poetry.dependencies]
+python = "~3.10"
+client-ideformer = {version = "^1.0.0", source = "space-ai-agents"}
+docker = "^7.1.0"
+coverage = "^7.6.4"
+
+[tool.poetry.group.ytsaurus.dependencies]
+ytsaurus-client = "~0.13.17"
+ytsaurus-yson = "~0.4.9"
+
+[[tool.poetry.source]]
+name = "space-grazie-ml"
+url = "https://packages.jetbrains.team/pypi/p/grazi/grazie-ml/simple"
+priority = "supplemental"
+
+[[tool.poetry.source]]
+name = "space-ai-agents"
+url = "https://packages.jetbrains.team/pypi/p/ml-4-se-lab/ai-agents/simple"
+priority = "supplemental"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

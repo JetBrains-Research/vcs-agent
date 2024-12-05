@@ -25,7 +25,7 @@ to mine additional scenarios for AI Agents. In either case, follow the setup ins
 setup and run the system locally.
 
 To simply run the tests, please first unzip the repositories for testing that we provide in `repos/testing-repositories.zip`
-into the `repos` folder.
+into the `repos` folder. The repositories for testing should then be located under `repos/testing-repositories`.
 
 ## File Structure
 Some files are just included for documentation purposes, such as `src/notebooks/analyze_dataset.ipynb` for which

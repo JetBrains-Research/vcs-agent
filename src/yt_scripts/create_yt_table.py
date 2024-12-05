@@ -61,7 +61,7 @@ def camel_to_snake(name: str) -> str:
 
 def main():
     yt_client = yt.YtClient(proxy=os.environ["YT_PROXY"], token=os.environ["YT_TOKEN"])
-    path_to_data = os.path.join(os.getcwd(), 'data')
+    path_to_data = os.path.join('../../', 'data')
 
     df = setup_input_data(path_to_data)
 
