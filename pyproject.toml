@@ -8,7 +8,7 @@ package-mode = false
 
 [tool.poetry.dependencies]
 python = "~3.10"
-client-ideformer = {version = "^1.0.0", source = "space-ai-agents"}
+client-ideformer = {git = "ssh://git@git.jetbrains.team/ml-4-se-lab/ideformer.git", subdirectory="cloud/client_ideformer"}
 docker = "^7.1.0"
 coverage = "^7.6.4"
 pandas = "^2.2.3"
